@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+
+# Uploads - keep directory structure tracked while ignoring uploaded files
+**/uploads/*
+!**/uploads/.gitkeep
+
+# OS & Logs
+*.log
+.DS_Store
+Thumbs.db
+
