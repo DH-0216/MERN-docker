@@ -1,4 +1,4 @@
-import { getUserById, loginUser, registerUser } from "../services/auth.service.js";
+import {getProfile, loginUser, registerUser } from "../services/auth.service.js";
 
 export const register = async (req, res, next) => {
   try {
@@ -54,7 +54,7 @@ export const login = async (req, res, next) => {
 export const getUserProfile = async (req, res, next) => {
   try {
     const userId = req.user._id;
-    const user = await getUserById(userId);
+    const user = await getProfile(userId);
     res.status(200).json({
       success: true,
       message: "User profile retrieved successfully",

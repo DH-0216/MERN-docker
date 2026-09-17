@@ -45,7 +45,7 @@ export const loginUser = async (email, password) => {
   return { user, token };
 };
 
-export const getUserById = async (userId) => {
+export const getProfile = async (userId) => {
   const user = await User.findById(userId);
   if (!user) {
     throw new Error("User not found");
