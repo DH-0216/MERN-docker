@@ -33,7 +33,7 @@ services:
       JWT_SECRET: MERN_DOCKER_BACKEND_Super_Secret_Key_2026
 
   frontend:
-    image: dulajhashmika/frontend:1.1.0
+    image: dulajhashmika/frontend:1.2.0
     container_name: frontend-container
 
     build:

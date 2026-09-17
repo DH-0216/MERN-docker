@@ -1,0 +1,44 @@
+services:
+  mongo:
+    image: mongo:latest
+    container_name: mongo-container-prod
+    restart: unless-stopped
+    volumes:
+      - mongo-data-prod:/data/db
+    networks:
+      - mern-network
+
+  backend:
+    image: dulajhashmika/backend:1.1.0
+    container_name: backend-container-prod
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongo
+    env_file:
+      - path: .env.production
+        required: true
+    networks:
+      - mern-network
+
+  frontend:
+    image: dulajhashmika/frontend:1.2.0
+    container_name: frontend-container-prod
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    env_file:
+      - path: .env.production
+        required: true
+    networks:
+      - mern-network
+
+volumes:
+  mongo-data-prod:
+
+networks:
+  mern-network:
+    driver: bridge
