@@ -15,13 +15,18 @@ app.get("/", (req, res) => {
 });
 
 const v1Router = express.Router();
-v1Router.use("/health", (req, res) => {
-  res.status(200).json({ status: "success", message: "Server is healthy" });
+v1Router.get("/health", (req, res) => {
+  res.set("Cache-Control", "no-store");
+
+  res.status(200).json({
+    status: "success",
+    message: "Server is healthy",
+  });
 });
 v1Router.use("/auth", authRouter);
 
 const v2Router = express.Router();
-v2Router.use("/health", (req, res) => {
+v2Router.get("/health", (req, res) => {
   res.status(200).json({
     status: "success",
     message: "Server is healthy",
