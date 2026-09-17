@@ -41,7 +41,7 @@ function App() {
           path="/home"
           element={
             <ProtectedRoute token={token}>
-              <Home onLogout={handleLogout} />
+              <Home token={token} onLogout={handleLogout} />
             </ProtectedRoute>
           }
         />
