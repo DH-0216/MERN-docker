@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema(
     email: {
       type: String,
       required: [true, "Email is required"],
-      unique: [true, "Email must be unique"],
+      unique: [true, "This email is already registered"],
       lowercase: true,
       trim: true,
       match: [
@@ -35,8 +35,8 @@ const userSchema = new mongoose.Schema(
 );
 
 // Hash password before saving if modified
-userSchema.pre('save', async function () {
-  if (!this.isModified('password')) {
+userSchema.pre("save", async function () {
+  if (!this.isModified("password")) {
     return;
   }
   const salt = await bcrypt.genSalt(10);
@@ -56,7 +56,6 @@ userSchema.methods.toJSON = function () {
   return userObject;
 };
 
-const User = mongoose.model('User', userSchema);
+const User = mongoose.model("User", userSchema);
 
 export default User;
-
