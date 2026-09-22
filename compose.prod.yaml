@@ -21,7 +21,7 @@ services:
       start_period: 10s
 
   backend:
-    image: backend-prod:1.0.0
+    image: dulajhashmika/backend-prod:1.0.0
     restart: unless-stopped
     container_name: backend-prod-container
 
@@ -52,7 +52,7 @@ services:
       start_period: 10s
 
   frontend:
-    image: frontend-prod:1.0.0
+    image: dulajhashmika/frontend-prod:1.0.0
     restart: unless-stopped
     container_name: frontend-prod-container
 

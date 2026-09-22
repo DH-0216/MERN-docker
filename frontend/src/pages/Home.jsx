@@ -24,14 +24,11 @@ const Home = ({ token, onLogout }) => {
         setIsProfileLoading(false);
         return;
       }
-      const response = await axios.get(
-        "http://localhost:5000/api/v1/auth/profile",
-        {
-          headers: {
-            Authorization: `Bearer ${activeToken}`,
-          },
+      const response = await axios.get("/api/v1/auth/profile", {
+        headers: {
+          Authorization: `Bearer ${activeToken}`,
         },
-      );
+      });
       if (response.data?.success && response.data?.data) {
         setProfile(response.data.data);
       } else {
@@ -63,14 +60,11 @@ const Home = ({ token, onLogout }) => {
           }
           return;
         }
-        const response = await axios.get(
-          "http://localhost:5000/api/v1/auth/profile",
-          {
-            headers: {
-              Authorization: `Bearer ${activeToken}`,
-            },
+        const response = await axios.get("/api/v1/auth/profile", {
+          headers: {
+            Authorization: `Bearer ${activeToken}`,
           },
-        );
+        });
         if (!ignore) {
           if (response.data?.success && response.data?.data) {
             setProfile(response.data.data);
@@ -146,9 +140,7 @@ const Home = ({ token, onLogout }) => {
   const getHealth = async () => {
     try {
       setIsLoadingHealth(true);
-      const response = await axios.get(
-        `http://localhost:5000/api/${version}/health`,
-      );
+      const response = await axios.get(`/api/${version}/health`);
 
       const result = response.data;
 
@@ -393,7 +385,9 @@ const Home = ({ token, onLogout }) => {
                           Active
                         </span>
                       </div>
-                      <p className="text-sm text-neutral-400">{profile.email}</p>
+                      <p className="text-sm text-neutral-400">
+                        {profile.email}
+                      </p>
                     </div>
                   </div>
 
@@ -612,7 +606,9 @@ const Home = ({ token, onLogout }) => {
                               d="M13 10V3L4 14h7v7l9-11h-7z"
                             />
                           </svg>
-                          <span>Check Health from {version.toUpperCase()} API</span>
+                          <span>
+                            Check Health from {version.toUpperCase()} API
+                          </span>
                         </>
                       )}
                     </motion.span>
@@ -637,7 +633,9 @@ const Home = ({ token, onLogout }) => {
                           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
                           <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
                         </span>
-                        <span className="text-sm font-bold">{healthStatus}</span>
+                        <span className="text-sm font-bold">
+                          {healthStatus}
+                        </span>
                       </div>
 
                       {healthData && (
@@ -715,4 +713,3 @@ const Home = ({ token, onLogout }) => {
 };
 
 export default Home;
-

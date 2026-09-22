@@ -30,10 +30,7 @@ const Auth = ({ onAuthSuccess }) => {
         ? { email: formData.email, password: formData.password }
         : formData;
 
-      const response = await axios.post(
-        `http://localhost:5000/api/v1/auth/${endpoint}`,
-        payload,
-      );
+      const response = await axios.post(`/api/v1/auth/${endpoint}`, payload);
 
       onAuthSuccess(response.data.data.token);
     } catch (requestError) {
@@ -215,7 +212,10 @@ const Auth = ({ onAuthSuccess }) => {
                             height: "auto",
                             y: 0,
                             transition: {
-                              height: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
+                              height: {
+                                duration: 0.35,
+                                ease: [0.16, 1, 0.3, 1],
+                              },
                               opacity: { duration: 0.25, delay: 0.08 },
                               y: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
                             },
@@ -226,7 +226,10 @@ const Auth = ({ onAuthSuccess }) => {
                             y: -10,
                             transition: {
                               opacity: { duration: 0.15 },
-                              height: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
+                              height: {
+                                duration: 0.3,
+                                ease: [0.16, 1, 0.3, 1],
+                              },
                               y: { duration: 0.2 },
                             },
                           }}
@@ -243,7 +246,7 @@ const Auth = ({ onAuthSuccess }) => {
                               onChange={handleChange}
                               required={!isLogin}
                               className="mt-2 w-full rounded-xl border border-white/10 bg-neutral-900/90 px-4 py-3 text-white outline-none transition placeholder:text-neutral-600 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-400/20"
-                              placeholder="dulaj"
+                              placeholder="Enter your username"
                             />
                           </label>
                         </motion.div>
@@ -262,7 +265,7 @@ const Auth = ({ onAuthSuccess }) => {
                         onChange={handleChange}
                         required
                         className="mt-2 w-full rounded-xl border border-white/10 bg-neutral-900/90 px-4 py-3 text-white outline-none transition placeholder:text-neutral-600 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-400/20"
-                        placeholder="you@example.com"
+                        placeholder="Enter your email address"
                       />
                     </motion.label>
 
@@ -435,4 +438,3 @@ const Auth = ({ onAuthSuccess }) => {
 };
 
 export default Auth;
-
