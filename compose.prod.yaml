@@ -1,5 +1,4 @@
 services:
-
   mongo:
     image: mongo:latest
     container_name: mongo-prod-container
@@ -10,6 +9,12 @@ services:
     networks:
       - mern-network
 
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   backend:
     image: backend-prod:1.0.0
@@ -24,11 +29,19 @@ services:
       JWT_SECRET: MERN_DOCKER_BACKEND_Super_Secret_Key_2026
 
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
 
     networks:
       - mern-network
 
+    healthcheck:
+      test:
+        ["CMD", "wget", "--spider", "-q", "http://localhost:5000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   frontend:
     image: frontend-prod:1.0.0
@@ -38,15 +51,21 @@ services:
       - "8080:80"
 
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
     networks:
       - mern-network
 
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 volumes:
   mongo-data-prod:
-
 
 networks:
   mern-network:
