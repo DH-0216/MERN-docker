@@ -1,17 +1,11 @@
-import {getProfile, loginUser, registerUser } from "../services/auth.service.js";
+import { getProfile, loginUser, registerUser } from "../services/auth.service.js";
+import User from "../models/user.model.js";
 
 export const register = async (req, res, next) => {
   try {
-    const { userName, email, password } = req.body;
+    const { userName, email, password, role } = req.body;
 
-    if (!userName || !email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: "All fields are required",
-      });
-    }
-
-    const result = await registerUser(userName, email, password);
+    const result = await registerUser(userName, email, password, role);
 
     res.status(201).json({
       success: true,
@@ -19,23 +13,13 @@ export const register = async (req, res, next) => {
       data: result,
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
-    });
+    next(error);
   }
 };
 
 export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: "Email and password are required",
-      });
-    }
 
     const result = await loginUser(email, password);
     res.status(200).json({
@@ -44,10 +28,20 @@ export const login = async (req, res, next) => {
       data: result,
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
+    next(error);
+  }
+};
+
+export const logout = async (req, res, next) => {
+  try {
+    // In stateless JWT, logout is primarily handled by the client removing the token.
+    // This endpoint provides formal server-side acknowledgment and session cleanup hooks.
+    res.status(200).json({
+      success: true,
+      message: "Logged out successfully",
     });
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -61,9 +55,30 @@ export const getUserProfile = async (req, res, next) => {
       data: user,
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
+    next(error);
+  }
+};
+
+export const getAdminData = async (req, res, next) => {
+  try {
+    const totalUsers = await User.countDocuments();
+    const adminCount = await User.countDocuments({ role: "admin" });
+
+    res.status(200).json({
+      success: true,
+      message: "Admin metrics retrieved successfully",
+      data: {
+        totalUsers,
+        adminCount,
+        serverTime: new Date().toISOString(),
+        system: {
+          uptime: process.uptime(),
+          nodeVersion: process.version,
+          memoryUsage: process.memoryUsage(),
+        },
+      },
     });
+  } catch (error) {
+    next(error);
   }
 };

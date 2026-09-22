@@ -1,8 +1,11 @@
-import User from "../models/user.model.js";
 import jwt from "jsonwebtoken";
+import User from "../models/user.model.js";
+import config from "../config/env.js";
 
 export const verifyToken = (token) => {
-  return jwt.verify(token, process.env.JWT_SECRET);
+  return jwt.verify(token, config.jwtSecret, {
+    algorithms: ["HS256"],
+  });
 };
 
 export const authenticate = async (req, res, next) => {
@@ -40,11 +43,34 @@ export const authenticate = async (req, res, next) => {
         message: "Token has expired. Please sign in again.",
       });
     }
-    return res.status(401).json({
-      success: false,
-      message: "Invalid token. Authorization denied.",
-    });
+    if (error.name === "JsonWebTokenError") {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid token. Authorization denied.",
+      });
+    }
+    next(error);
   }
+};
+
+export const authorize = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required before checking permissions.",
+      });
+    }
+
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: `Forbidden: You do not have the required permissions (${roles.join(", ")}).`,
+      });
+    }
+
+    next();
+  };
 };
 
 export default authenticate;

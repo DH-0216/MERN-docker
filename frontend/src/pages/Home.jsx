@@ -12,8 +12,43 @@ const Home = ({ token, onLogout }) => {
   const [isLoadingHealth, setIsLoadingHealth] = useState(false);
   const [healthData, setHealthData] = useState(null);
   const [version, setVersion] = useState("v1");
+  const [adminStatus, setAdminStatus] = useState(null);
+  const [isAdminTesting, setIsAdminTesting] = useState(false);
 
   const activeToken = token || localStorage.getItem("authToken");
+
+  const handleLogoutClick = async () => {
+    try {
+      await axios.post("/api/v1/auth/logout");
+    } catch {
+      // Ignore network/server errors during logout
+    }
+    onLogout();
+  };
+
+  const testAdminRoute = async () => {
+    setIsAdminTesting(true);
+    setAdminStatus(null);
+    try {
+      const res = await axios.get("/api/v1/auth/admin", {
+        headers: { Authorization: `Bearer ${activeToken}` },
+      });
+      setAdminStatus({
+        success: true,
+        status: res.status,
+        message: res.data.message,
+        data: res.data.data,
+      });
+    } catch (err) {
+      setAdminStatus({
+        success: false,
+        status: err.response?.status || 500,
+        message: err.response?.data?.message || "Failed to access admin endpoint",
+      });
+    } finally {
+      setIsAdminTesting(false);
+    }
+  };
 
   const fetchProfile = useCallback(async () => {
     setIsProfileLoading(true);
@@ -216,7 +251,7 @@ const Home = ({ token, onLogout }) => {
             )}
 
             <motion.button
-              onClick={onLogout}
+              onClick={handleLogoutClick}
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
               className="flex items-center gap-2 rounded-xl border border-white/10 bg-neutral-900 px-4 py-2 text-xs font-semibold text-neutral-200 transition-colors hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300 cursor-pointer"
@@ -472,12 +507,70 @@ const Home = ({ token, onLogout }) => {
 
                     <div className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3">
                       <span className="text-xs font-medium text-neutral-400">
+                        Assigned Role
+                      </span>
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider ${
+                          profile.role === "admin"
+                            ? "border border-purple-400/30 bg-purple-500/15 text-purple-300"
+                            : "border border-cyan-400/30 bg-cyan-500/15 text-cyan-300"
+                        }`}
+                      >
+                        {profile.role || "user"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3">
+                      <span className="text-xs font-medium text-neutral-400">
                         Session Auth
                       </span>
                       <span className="inline-flex items-center gap-1.5 text-xs text-green-400 font-medium">
                         <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse"></span>
                         JWT Verified
                       </span>
+                    </div>
+
+                    {/* RBAC Route Test Panel */}
+                    <div className="mt-2 rounded-xl border border-white/10 bg-neutral-950/40 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <span className="block text-xs font-bold text-neutral-200">
+                            Role-Based Authorization (RBAC)
+                          </span>
+                          <span className="block text-[11px] text-neutral-400">
+                            Test admin check (/api/v1/auth/admin)
+                          </span>
+                        </div>
+                        <motion.button
+                          type="button"
+                          onClick={testAdminRoute}
+                          disabled={isAdminTesting}
+                          whileHover={{ scale: 1.03 }}
+                          whileTap={{ scale: 0.97 }}
+                          className="shrink-0 rounded-lg bg-cyan-400/15 border border-cyan-400/30 px-3 py-1.5 text-xs font-semibold text-cyan-300 transition-colors hover:bg-cyan-400/25 cursor-pointer disabled:opacity-50"
+                        >
+                          {isAdminTesting ? "Testing..." : "Test Admin Route"}
+                        </motion.button>
+                      </div>
+
+                      {adminStatus && (
+                        <div
+                          className={`mt-3 rounded-lg border p-3 text-xs ${
+                            adminStatus.success
+                              ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-200"
+                              : "border-amber-400/30 bg-amber-500/10 text-amber-200"
+                          }`}
+                        >
+                          <div className="font-semibold">
+                            HTTP {adminStatus.status}: {adminStatus.message}
+                          </div>
+                          {adminStatus.data && (
+                            <div className="mt-1 font-mono text-[11px] text-neutral-300">
+                              Total Users: {adminStatus.data.totalUsers} | Admins: {adminStatus.data.adminCount}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

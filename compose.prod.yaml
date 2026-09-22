@@ -1,6 +1,6 @@
 services:
   mongo:
-    image: mongo:latest
+    image: mongo:7.0
     restart: unless-stopped
     container_name: mongo-prod-container
 
@@ -29,9 +29,11 @@ services:
     cpus: "0.5"
 
     environment:
-      PORT: ${PORT}
+      NODE_ENV: production
+      PORT: ${PORT:-5000}
       MONGO_URI: ${MONGO_URI}
       JWT_SECRET: ${JWT_SECRET}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8080,http://localhost:80}
 
     depends_on:
       mongo:
