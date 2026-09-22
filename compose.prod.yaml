@@ -1,0 +1,52 @@
+services:
+
+  mongo:
+    image: mongo:latest
+    container_name: mongo-prod-container
+
+    volumes:
+      - mongo-data-prod:/data/db
+
+    networks:
+      - mern-network
+
+
+  backend:
+    image: backend-prod:1.0.0
+    container_name: backend-prod-container
+
+    ports:
+      - "5000:5000"
+
+    environment:
+      PORT: 5000
+      MONGO_URI: mongodb://mongo:27017/dockerDB
+      JWT_SECRET: MERN_DOCKER_BACKEND_Super_Secret_Key_2026
+
+    depends_on:
+      - mongo
+
+    networks:
+      - mern-network
+
+
+  frontend:
+    image: frontend-prod:1.0.0
+    container_name: frontend-prod-container
+
+    ports:
+      - "8080:80"
+
+    depends_on:
+      - backend
+
+    networks:
+      - mern-network
+
+
+volumes:
+  mongo-data-prod:
+
+
+networks:
+  mern-network:
