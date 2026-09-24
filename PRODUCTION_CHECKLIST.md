@@ -24,15 +24,29 @@ This document details all implemented production-readiness controls, verificatio
 | **Rotate Exposed Secrets** | ✅ Implemented | Fresh cryptographically generated 256-bit random hex secrets configured for dev and production `.env` files. |
 | **Don't Commit .env Files** | ✅ Verified | `.gitignore` explicitly ignores `.env` and `.env.*` (only `.env.example` and `.env.production.example` are tracked). |
 | **Don't Include Secrets in Images** | ✅ Verified | `.dockerignore` in root, backend, and frontend excludes all `.env*` files from Docker build contexts. |
-| **Don't Expose MongoDB Publicly** | ✅ Verified | `compose.prod.yaml` leaves MongoDB with no exposed host ports, keeping it isolated inside the private `mern-network`. |
+| **Don't Expose MongoDB Publicly** | ✅ Verified | `compose.prod.yaml` leaves MongoDB on `backend-network` (internal) with no exposed host ports. |
 | **Don't Expose Backend Publicly** | ✅ Verified | `compose.prod.yaml` leaves Backend with no exposed host ports; all external access must pass through Nginx reverse proxy. |
+| **MongoDB Authentication** | ✅ Implemented | `MONGO_INITDB_ROOT_USERNAME` / `MONGO_INITDB_ROOT_PASSWORD` enforced via environment variables; `MONGO_URI` includes `?authSource=admin`. |
+| **No New Privileges** | ✅ Implemented | `security_opt: ["no-new-privileges:true"]` enforced across all services in `compose.prod.yaml` to prevent container privilege escalation. |
+| **Read-Only Root Filesystem** | ✅ Implemented | `read_only: true` on backend and frontend containers; writable paths limited to explicit `tmpfs` mounts (`/tmp`, `/var/cache/nginx`, `/var/run`). |
+| **Two-Tier Network Isolation** | ✅ Implemented | `frontend-network` (frontend ↔ backend) and `backend-network` (backend ↔ mongo, `internal: true`). MongoDB has zero internet access. |
+| **PID 1 Signal & Zombie Handling** | ✅ Implemented | `init: true` enabled on Node.js backend container to ensure proper Tini init reaping and graceful `SIGTERM` shutdown handling. |
+| **Graceful Shutdown** | ✅ Implemented | `stop_grace_period: 30s` on backend container to allow in-flight requests to complete before `SIGKILL`. |
+| **Fork Bomb Protection** | ✅ Implemented | `pids_limit` set on all containers (backend: 100, frontend: 50, mongo: 200) to prevent fork bomb attacks. |
+| **Proper File Ownership** | ✅ Implemented | `COPY --chown=node:node` in backend `Dockerfile.prod` ensures the `node` user owns all application files. |
+| **Pinned Image Versions** | ✅ Implemented | `node:20-alpine`, `mongo:7.0`, `nginx:1.27-alpine` — no floating `:latest` tags. |
+| **OCI Image Labels** | ✅ Implemented | `LABEL org.opencontainers.image.*` metadata in production Dockerfiles for registry traceability. |
+| **Dockerfile-Level Healthchecks** | ✅ Implemented | `HEALTHCHECK` instructions in both `Dockerfile.prod` files for standalone runtime compatibility (Kubernetes, ECS). |
+| **Static Cache Strategy** | ✅ Implemented | Nginx enforces `Cache-Control: no-store, no-cache, must-revalidate` on `/index.html` and 1-year immutable caching on hashed assets (`/assets/`). |
+| **Dotfile / Hidden File Protection** | ✅ Implemented | Nginx strictly denies and returns 404 on any requests matching `/\.` (e.g., `.env`, `.git`). |
+| **Lightweight Health Probes** | ✅ Implemented | Dedicated `location = /healthz` endpoint in Nginx for zero-overhead container and load balancer health probes. |
 | **HTTPS / SSL Configuration** | ✅ Template Ready | Provided `nginx.ssl.conf.example` with HTTP-to-HTTPS 301 redirection, modern TLS 1.2/1.3 ciphers, and HSTS headers. |
 
 ---
 
 ## 🧪 2. Automated Application Testing
 
-All 24 automated integration tests run via `npm test` in `backend/`:
+All 28 automated integration tests run via `npm test` in `backend/`:
 
 | Test Suite | Test Cases Covered |
 |---|---|
@@ -42,6 +56,7 @@ All 24 automated integration tests run via `npm test` in `backend/`:
 | **Logout** | Explicit `POST /api/v1/auth/logout` endpoint returning 200 acknowledgment. |
 | **JWT Authentication** | Accessing `/api/v1/auth/profile` with valid token (200), missing token (401), tampered/invalid token (401), expired token (401). |
 | **Role-Based Authorization** | Regular user accessing `/api/v1/auth/admin` returns 403 Forbidden; admin user accessing route returns 200 OK with system statistics. |
+| **Account Deletion** | Authenticated user self-deletion via `DELETE /api/v1/auth/profile` and alias `/account` (200), database record removal verification, and unauthenticated deletion rejection (401). |
 | **Request Body Limits** | Request bodies > 10kb return HTTP 413 Payload Too Large. |
 | **404 Handling** | Non-existent routes return structured 404 JSON. |
 | **Security Headers** | Verified `x-frame-options`, `x-content-type-options` present in responses. |
@@ -56,47 +71,62 @@ All 24 automated integration tests run via `npm test` in `backend/`:
 - **Audit**: Backend and frontend verified with 0 vulnerabilities (`npm audit`).
 - **Unused Packages Removed**: Removed unused `axios` from backend `package.json`.
 - **Node.js LTS**: Pinned to Node 20 LTS Alpine (`node:20-alpine`) across Dockerfiles.
-- **Reproducible Installs**: Dockerfiles use `npm ci` (`npm ci --omit=dev` for backend production).
+- **Nginx Pinned**: Frontend production image pinned to `nginx:1.27-alpine`.
+- **MongoDB Pinned**: Both dev and prod compose files pin `mongo:7.0`.
+- **Reproducible Installs**: Dockerfiles use `npm ci` (`npm ci --omit=dev` for backend production) with `npm cache clean --force`.
 
 ---
 
 ## 🐳 4. Docker Production Architecture
 
 ```
-[ Internet / Clients ]
-         │
-         ▼  (Port 80 / 443)
-┌──────────────────────────────────────────────┐
-│  frontend-prod-container (Nginx Reverse Proxy)│
-│  - Serves static Vite React SPA             │
-│  - Reverse proxies /api/ -> backend:5000     │
-│  - Security headers & Gzip compression       │
-└──────────────────────┬───────────────────────┘
-                       │ (mern-network only)
+ [ Internet / Clients ]
+          │
+          ▼  (Port 8080 → 80)
+┌─────────────────────────────────────────────────┐
+│  frontend-prod-container (Nginx 1.27)           │
+│  - Serves static Vite React SPA                 │
+│  - Reverse proxies /api/ → backend:5000         │
+│  - Security headers & Gzip compression          │
+│  - read_only filesystem, pids_limit: 50         │
+│  📡 frontend-network                            │
+└──────────────────────┬──────────────────────────┘
+                       │ (frontend-network)
                        ▼
-┌──────────────────────────────────────────────┐
-│  backend-prod-container (Node.js API)        │
-│  - Runs as non-root user (USER node)         │
-│  - NODE_ENV=production                       │
-│  - Rate limiting & Helmet & Zod validation   │
-│  - No host ports exposed                     │
-└──────────────────────┬───────────────────────┘
-                       │ (mern-network only)
+┌─────────────────────────────────────────────────┐
+│  backend-prod-container (Node.js API)           │
+│  - Runs as non-root user (USER node)            │
+│  - init: true, stop_grace_period: 30s           │
+│  - read_only filesystem, pids_limit: 100        │
+│  - No host ports exposed                        │
+│  📡 frontend-network + backend-network          │
+└──────────────────────┬──────────────────────────┘
+                       │ (backend-network, internal)
                        ▼
-┌──────────────────────────────────────────────┐
-│  mongo-prod-container (MongoDB 7.0)          │
-│  - Pinned image: mongo:7.0                   │
-│  - Persistent volume: mongo-data-prod        │
-│  - No host ports exposed                     │
-└──────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────┐
+│  mongo-prod-container (MongoDB 7.0)             │
+│  - Authenticated (MONGO_INITDB_ROOT_*)          │
+│  - Persistent volume: mongo-data-prod           │
+│  - No host ports, no internet (internal network)│
+│  - pids_limit: 200                              │
+│  📡 backend-network only                        │
+└─────────────────────────────────────────────────┘
 ```
 
 - **Resource Limits**:
-  - `mongo`: 1 CPU, 1GB RAM
-  - `backend`: 0.5 CPU, 512MB RAM
-  - `frontend`: 0.25 CPU, 128MB RAM
+  - `mongo`: 1 CPU, 1GB RAM, 200 PIDs
+  - `backend`: 0.5 CPU, 512MB RAM, 100 PIDs
+  - `frontend`: 0.25 CPU, 128MB RAM, 50 PIDs
 - **Restart Policy**: `unless-stopped` across all containers.
-- **Healthchecks**: Configured for all containers (`mongosh ping`, `wget` backend `/api/v1/health`, `wget` frontend `/`).
+- **Network Isolation**: Two-tier network — `frontend-network` (frontend ↔ backend) and `backend-network` (`internal: true`, backend ↔ mongo). MongoDB has zero internet access.
+- **Read-Only Filesystems**: `read_only: true` on backend and frontend. Writable paths limited to explicit `tmpfs` mounts.
+- **MongoDB Authentication**: `MONGO_INITDB_ROOT_USERNAME` / `MONGO_INITDB_ROOT_PASSWORD` environment variables with `?authSource=admin` in connection string.
+- **Security & Privilege Hardening**: `security_opt: ["no-new-privileges:true"]` on all containers.
+- **Process Supervision (`init: true`)**: Backend runs with Tini for signal forwarding and zombie reaping; `stop_grace_period: 30s` for graceful shutdown.
+- **Healthchecks**: All containers (`mongosh ping`, `wget` backend `/api/v1/health`, `wget` frontend `/healthz`). Also defined via `HEALTHCHECK` in Dockerfiles for standalone runtime compatibility.
+- **Static File Caching & Security**: Nginx enforces cache-busting on `index.html`, 1-year immutable caching on Vite assets, and blocks dotfiles.
+- **Log Rotation**: Capped at 10MB per file with 3 rotating files across all services.
+- **OCI Labels**: Production Dockerfiles carry `org.opencontainers.image.*` metadata for registry traceability.
 
 ---
 

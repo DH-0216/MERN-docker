@@ -4,14 +4,29 @@ services:
     restart: unless-stopped
     container_name: mongo-prod-container
 
+    security_opt:
+      - no-new-privileges:true
+
+    pids_limit: 200
+
     mem_limit: 1g
     cpus: "1.0"
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
 
     volumes:
       - mongo-data-prod:/data/db
 
     networks:
-      - mern-network
+      - backend-network
 
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
@@ -21,12 +36,32 @@ services:
       start_period: 10s
 
   backend:
-    image: dulajhashmika/backend-prod:1.0.0
+    image: dulajhashmika/backend-prod:1.1.0
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    init: true
     restart: unless-stopped
     container_name: backend-prod-container
+    stop_grace_period: 30s
+
+    security_opt:
+      - no-new-privileges:true
+
+    read_only: true
+    tmpfs:
+      - /tmp
+
+    pids_limit: 100
 
     mem_limit: 512m
     cpus: "0.5"
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
     environment:
       NODE_ENV: production
@@ -40,7 +75,8 @@ services:
         condition: service_healthy
 
     networks:
-      - mern-network
+      - frontend-network
+      - backend-network
 
     healthcheck:
       test:
@@ -51,12 +87,32 @@ services:
       start_period: 10s
 
   frontend:
-    image: dulajhashmika/frontend-prod:1.0.0
+    image: dulajhashmika/frontend-prod:1.1.0
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
     restart: unless-stopped
     container_name: frontend-prod-container
 
+    security_opt:
+      - no-new-privileges:true
+
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
+
+    pids_limit: 50
+
     mem_limit: 128m
     cpus: "0.25"
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
     ports:
       - "8080:80"
@@ -66,10 +122,10 @@ services:
         condition: service_healthy
 
     networks:
-      - mern-network
+      - frontend-network
 
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:80/"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:80/healthz"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -79,4 +135,8 @@ volumes:
   mongo-data-prod:
 
 networks:
-  mern-network:
+  frontend-network:
+    # Frontend <-> Backend communication; frontend has port mapping to host
+  backend-network:
+    internal: true
+    # Backend <-> MongoDB only; MongoDB cannot reach the internet

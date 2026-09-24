@@ -1,20 +1,28 @@
 FROM node:20-alpine
 
+# OCI metadata labels
+LABEL org.opencontainers.image.description="MERN Docker – Backend API (Production)"
+LABEL org.opencontainers.image.version="1.1.0"
+
 # Set production environment
 ENV NODE_ENV=production
 
 WORKDIR /app
 
-# Install production dependencies only
-COPY package*.json ./
+# Install production dependencies only (owned by node user)
+COPY --chown=node:node package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
-# Copy application source code
-COPY . .
+# Copy application source code (owned by node user)
+COPY --chown=node:node . .
 
-# Set non-root permissions for security
+# Set non-root user for security
 USER node
 
 EXPOSE 5000
+
+# Dockerfile-level healthcheck for standalone runs (Kubernetes, ECS, etc.)
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
+  CMD wget --spider -q http://localhost:5000/api/v1/health || exit 1
 
 CMD ["node", "server.js"]
