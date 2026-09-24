@@ -71,9 +71,9 @@ All 28 automated integration tests run via `npm test` in `backend/`:
 - **Audit**: Backend and frontend verified with 0 vulnerabilities (`npm audit`).
 - **Unused Packages Removed**: Removed unused `axios` from backend `package.json`.
 - **Node.js LTS**: Pinned to Node 20 LTS Alpine (`node:20-alpine`) across Dockerfiles.
-- **Nginx Pinned**: Frontend production image pinned to `nginx:1.27-alpine`.
+- **Nginx Pinned**: Client production image pinned to `nginx:1.27-alpine`.
 - **MongoDB Pinned**: Both dev and prod compose files pin `mongo:7.0`.
-- **Reproducible Installs**: Dockerfiles use `npm ci` (`npm ci --omit=dev` for backend production) with `npm cache clean --force`.
+- **Reproducible Installs**: Dockerfiles use `npm ci` (`npm ci --omit=dev` for server production) with `npm cache clean --force`.
 
 ---
 
@@ -84,22 +84,22 @@ All 28 automated integration tests run via `npm test` in `backend/`:
           │
           ▼  (Port 8080 → 80)
 ┌─────────────────────────────────────────────────┐
-│  frontend-prod-container (Nginx 1.27)           │
+│  client-prod-container (Nginx 1.27)             │
 │  - Serves static Vite React SPA                 │
-│  - Reverse proxies /api/ → backend:5000         │
+│  - Reverse proxies /api/ → server:5000          │
 │  - Security headers & Gzip compression          │
 │  - read_only filesystem, pids_limit: 50         │
-│  📡 frontend-network                            │
+│  📡 client-network                              │
 └──────────────────────┬──────────────────────────┘
-                       │ (frontend-network)
+                       │ (client-network)
                        ▼
 ┌─────────────────────────────────────────────────┐
-│  backend-prod-container (Node.js API)           │
+│  server-prod-container (Node.js API)            │
 │  - Runs as non-root user (USER node)            │
 │  - init: true, stop_grace_period: 30s           │
 │  - read_only filesystem, pids_limit: 100        │
 │  - No host ports exposed                        │
-│  📡 frontend-network + backend-network          │
+│  📡 client-network + backend-network            │
 └──────────────────────┬──────────────────────────┘
                        │ (backend-network, internal)
                        ▼
@@ -115,15 +115,15 @@ All 28 automated integration tests run via `npm test` in `backend/`:
 
 - **Resource Limits**:
   - `mongo`: 1 CPU, 1GB RAM, 200 PIDs
-  - `backend`: 0.5 CPU, 512MB RAM, 100 PIDs
-  - `frontend`: 0.25 CPU, 128MB RAM, 50 PIDs
+  - `server`: 0.5 CPU, 512MB RAM, 100 PIDs
+  - `client`: 0.25 CPU, 128MB RAM, 50 PIDs
 - **Restart Policy**: `unless-stopped` across all containers.
-- **Network Isolation**: Two-tier network — `frontend-network` (frontend ↔ backend) and `backend-network` (`internal: true`, backend ↔ mongo). MongoDB has zero internet access.
-- **Read-Only Filesystems**: `read_only: true` on backend and frontend. Writable paths limited to explicit `tmpfs` mounts.
+- **Network Isolation**: Two-tier network — `client-network` (client ↔ server) and `backend-network` (`internal: true`, server ↔ mongo). MongoDB has zero internet access.
+- **Read-Only Filesystems**: `read_only: true` on server and client. Writable paths limited to explicit `tmpfs` mounts.
 - **MongoDB Authentication**: `MONGO_INITDB_ROOT_USERNAME` / `MONGO_INITDB_ROOT_PASSWORD` environment variables with `?authSource=admin` in connection string.
 - **Security & Privilege Hardening**: `security_opt: ["no-new-privileges:true"]` on all containers.
-- **Process Supervision (`init: true`)**: Backend runs with Tini for signal forwarding and zombie reaping; `stop_grace_period: 30s` for graceful shutdown.
-- **Healthchecks**: All containers (`mongosh ping`, `wget` backend `/api/v1/health`, `wget` frontend `/healthz`). Also defined via `HEALTHCHECK` in Dockerfiles for standalone runtime compatibility.
+- **Process Supervision (`init: true`)**: Server runs with Tini for signal forwarding and zombie reaping; `stop_grace_period: 30s` for graceful shutdown.
+- **Healthchecks**: All containers (`mongosh ping`, `wget` server `/api/v1/health`, `wget` client `/healthz`). Also defined via `HEALTHCHECK` in Dockerfiles for standalone runtime compatibility.
 - **Static File Caching & Security**: Nginx enforces cache-busting on `index.html`, 1-year immutable caching on Vite assets, and blocks dotfiles.
 - **Log Rotation**: Capped at 10MB per file with 3 rotating files across all services.
 - **OCI Labels**: Production Dockerfiles carry `org.opencontainers.image.*` metadata for registry traceability.

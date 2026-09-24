@@ -1,7 +1,7 @@
 FROM node:20-alpine
 
 # OCI metadata labels
-LABEL org.opencontainers.image.description="MERN Docker – Backend API (Production)"
+LABEL org.opencontainers.image.description="MERN Docker – Server API (Production)"
 LABEL org.opencontainers.image.version="1.2.0"
 
 # Set production environment

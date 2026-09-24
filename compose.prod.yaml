@@ -35,14 +35,14 @@ services:
       retries: 3
       start_period: 10s
 
-  backend:
-    image: dulajhashmika/backend-prod:1.2.0
+  server:
+    image: dulajhashmika/server-prod:1.2.0
     build:
-      context: ./backend
+      context: ./server
       dockerfile: Dockerfile.prod
     init: true
     restart: unless-stopped
-    container_name: backend-prod-container
+    container_name: server-prod-container
     stop_grace_period: 30s
 
     security_opt:
@@ -75,7 +75,7 @@ services:
         condition: service_healthy
 
     networks:
-      - frontend-network
+      - client-network
       - backend-network
 
     healthcheck:
@@ -86,13 +86,13 @@ services:
       retries: 3
       start_period: 10s
 
-  frontend:
-    image: dulajhashmika/frontend-prod:1.2.0
+  client:
+    image: dulajhashmika/client-prod:1.2.0
     build:
-      context: ./frontend
+      context: ./client
       dockerfile: Dockerfile.prod
     restart: unless-stopped
-    container_name: frontend-prod-container
+    container_name: client-prod-container
 
     security_opt:
       - no-new-privileges:true
@@ -118,11 +118,11 @@ services:
       - "8080:80"
 
     depends_on:
-      backend:
+      server:
         condition: service_healthy
 
     networks:
-      - frontend-network
+      - client-network
 
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:80/healthz"]
@@ -135,8 +135,8 @@ volumes:
   mongo-data-prod:
 
 networks:
-  frontend-network:
-    # Frontend <-> Backend communication; frontend has port mapping to host
+  client-network:
+    # Client <-> Server communication; client has port mapping to host
   backend-network:
     internal: true
-    # Backend <-> MongoDB only; MongoDB cannot reach the internet
+    # Server <-> MongoDB only; MongoDB cannot reach the internet
