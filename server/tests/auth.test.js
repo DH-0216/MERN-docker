@@ -92,7 +92,7 @@ describe("MERN Production Readiness & Security Test Suite", () => {
       userToken = res.body.data.token;
     });
 
-    it("POST /api/v1/auth/register should successfully register an admin user", async () => {
+    it("POST /api/v1/auth/register should ignore role parameter and strictly register as regular user", async () => {
       const res = await request(app)
         .post("/api/v1/auth/register")
         .send({
@@ -104,8 +104,16 @@ describe("MERN Production Readiness & Security Test Suite", () => {
 
       assert.equal(res.status, 201);
       assert.equal(res.body.success, true);
-      assert.equal(res.body.data.user.role, "admin");
-      adminToken = res.body.data.token;
+      // Privilege escalation blocked: public registration role must always be "user"
+      assert.equal(res.body.data.user.role, "user");
+
+      // Elevate admin user in DB directly to obtain adminToken for subsequent RBAC test suites
+      const elevatedAdmin = await User.findByIdAndUpdate(
+        res.body.data.user.id || res.body.data.user._id,
+        { role: "admin" },
+        { new: true },
+      );
+      adminToken = generateToken(elevatedAdmin);
     });
 
     it("POST /api/v1/auth/register should fail on duplicate email (409 Conflict)", async () => {

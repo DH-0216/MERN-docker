@@ -1,19 +1,56 @@
-# React + Vite
+# MERN Admin Dashboard & Control Portal
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An administrative dashboard built with **React 19**, **Vite**, **Tailwind CSS v4**, and **Lucide React**, integrated into the multi-container MERN Docker infrastructure.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🌟 Key Features
 
-## React Compiler
+- **Role-Based Access Control (RBAC)**: Exclusively accessible to accounts with `role === "admin"`. Regular users are automatically denied access.
+- **Executive Metrics**: Live KPI cards for Total Users, Admins, Standard Users, System Uptime, and Memory Consumption (RSS / Heap).
+- **User Management**:
+  - Full CRUD control with search and role filters.
+  - Promote regular members to administrators or demote admins.
+  - Safe account deletion with safeguard preventing admins from deleting or demoting their own active session.
+  - Direct user registration modal from the dashboard.
+- **System Health & Diagnostics**:
+  - Live API benchmark tool testing `/api/v1/health`, `/api/v2/health`, and `/api/v1/admin/stats` with response latency in milliseconds.
+  - Memory gauges tracking V8 heap usage and total allocation.
+  - MongoDB connection state monitor.
+- **Microservice Mapping**: Seamless proxy routing (`/api`) to the Express backend.
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+---
 
-Note: This will impact Vite dev & build performances.
-You can also try [the experimental native React Compiler support in plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md#rust-react-compiler) by using `compiler: true` in the plugin options instead of using the Babel plugin.
+## 🚀 Running the Admin Dashboard
 
-## Expanding the ESLint configuration
+### Option 1: Via Docker Compose (Recommended)
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+From the project root:
+
+```bash
+docker compose up --build
+```
+
+- **Admin Portal**: [http://localhost:5174](http://localhost:5174)
+- **Client App**: [http://localhost:5173](http://localhost:5173)
+- **Server API**: [http://localhost:5000](http://localhost:5000)
+
+### Option 2: Local Development
+
+```bash
+cd admin
+npm install
+npm run dev
+```
+
+The app will start at `http://localhost:5174` and proxy `/api/*` requests to `http://localhost:5000`.
+
+---
+
+## 🛡️ Authentication & Role Guard
+
+Only users registered with the `admin` role can log in to this portal:
+
+1. Create an admin user via the API or dashboard:
+   - Endpoint: `POST /api/v1/auth/register` with `role: "admin"`
+2. Sign in at `http://localhost:5174/login`.

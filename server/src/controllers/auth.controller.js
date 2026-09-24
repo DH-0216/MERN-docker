@@ -8,9 +8,10 @@ import User from "../models/user.model.js";
 
 export const register = async (req, res, next) => {
   try {
-    const { userName, email, password, role } = req.body;
+    const { userName, email, password } = req.body;
 
-    const result = await registerUser(userName, email, password, role);
+    // Public registration always assigns standard user role to prevent privilege escalation
+    const result = await registerUser(userName, email, password, "user");
 
     res.status(201).json({
       success: true,

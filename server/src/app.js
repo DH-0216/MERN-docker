@@ -9,6 +9,7 @@ import {
   notFoundHandler,
 } from "./middleware/error.middleware.js";
 import authRouter from "./routes/auth.routes.js";
+import adminRouter from "./routes/admin.routes.js";
 
 const app = express();
 
@@ -48,6 +49,7 @@ v1Router.get("/health", (req, res) => {
   });
 });
 v1Router.use("/auth", authRouter);
+v1Router.use("/admin", adminRouter);
 
 // API v2 Router
 const v2Router = express.Router();
