@@ -1,8 +1,8 @@
 import { useState } from "react";
-import axios from "axios";
 import { motion } from "framer-motion";
 import AuthShowcase from "../components/auth/AuthShowcase";
 import AuthForm from "../components/auth/AuthForm";
+import { authApi } from "../api/clientApi";
 
 const Auth = ({ onAuthSuccess }) => {
   const [mode, setMode] = useState("login");
@@ -27,12 +27,10 @@ const Auth = ({ onAuthSuccess }) => {
     setIsLoading(true);
 
     try {
-      const endpoint = isLogin ? "login" : "register";
-      const payload = isLogin
-        ? { email: formData.email, password: formData.password }
-        : formData;
+      const response = isLogin
+        ? await authApi.login(formData.email, formData.password)
+        : await authApi.register(formData);
 
-      const response = await axios.post(`/api/v1/auth/${endpoint}`, payload);
       onAuthSuccess(response.data.data.token);
     } catch (requestError) {
       setError(

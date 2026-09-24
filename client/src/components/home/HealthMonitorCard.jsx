@@ -1,6 +1,6 @@
 import { useState } from "react";
-import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
+import { healthApi } from "../../api/clientApi";
 
 const HealthMonitorCard = () => {
   const [version, setVersion] = useState("v1");
@@ -28,7 +28,7 @@ const HealthMonitorCard = () => {
   const getHealth = async () => {
     try {
       setIsLoadingHealth(true);
-      const response = await axios.get(`/api/${version}/health`);
+      const response = await healthApi.getHealth(version);
       const result = response.data;
 
       if (result.status === "success") {

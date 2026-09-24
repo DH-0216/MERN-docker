@@ -1,8 +1,8 @@
 import { useState } from "react";
-import axios from "axios";
 import { motion } from "framer-motion";
+import { authApi } from "../../api/clientApi";
 
-const RbacTestPanel = ({ token }) => {
+const RbacTestPanel = () => {
   const [adminStatus, setAdminStatus] = useState(null);
   const [isAdminTesting, setIsAdminTesting] = useState(false);
 
@@ -10,9 +10,7 @@ const RbacTestPanel = ({ token }) => {
     setIsAdminTesting(true);
     setAdminStatus(null);
     try {
-      const res = await axios.get("/api/v1/auth/admin", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await authApi.testAdminRbac();
       setAdminStatus({
         success: true,
         status: res.status,

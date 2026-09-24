@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import axios from "axios";
 import { motion } from "framer-motion";
 import HomeNavbar from "../components/home/HomeNavbar";
 import UserProfileCard from "../components/home/UserProfileCard";
 import HealthMonitorCard from "../components/home/HealthMonitorCard";
 import ConfirmationModal from "../components/home/ConfirmationModal";
+import { authApi } from "../api/clientApi";
 
 const Home = ({ token, onLogout }) => {
   const [profile, setProfile] = useState(null);
@@ -32,7 +32,7 @@ const Home = ({ token, onLogout }) => {
     setIsModalLoading(true);
     setModalError("");
     try {
-      await axios.post("/api/v1/auth/logout");
+      await authApi.logout();
     } catch {
       // Ignore network/server errors during logout
     } finally {
@@ -46,10 +46,7 @@ const Home = ({ token, onLogout }) => {
     setIsModalLoading(true);
     setModalError("");
     try {
-      await axios.delete("/api/v1/auth/profile", {
-        headers: { Authorization: `Bearer ${activeToken}` },
-      });
-
+      await authApi.deleteAccount();
       setActiveModal(null);
       onLogout();
     } catch (err) {
@@ -71,9 +68,7 @@ const Home = ({ token, onLogout }) => {
         setIsProfileLoading(false);
         return;
       }
-      const response = await axios.get("/api/v1/auth/profile", {
-        headers: { Authorization: `Bearer ${activeToken}` },
-      });
+      const response = await authApi.getProfile();
       if (response.data?.success && response.data?.data) {
         setProfile(response.data.data);
       } else {
@@ -105,9 +100,7 @@ const Home = ({ token, onLogout }) => {
           }
           return;
         }
-        const response = await axios.get("/api/v1/auth/profile", {
-          headers: { Authorization: `Bearer ${activeToken}` },
-        });
+        const response = await authApi.getProfile();
         if (!ignore) {
           if (response.data?.success && response.data?.data) {
             setProfile(response.data.data);
