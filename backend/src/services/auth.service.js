@@ -79,3 +79,19 @@ export const getProfile = async (userId) => {
   }
   return user.toJSON();
 };
+
+export const deleteUserAccount = async (userId) => {
+  const user = await User.findByIdAndDelete(userId);
+  if (!user) {
+    const error = new Error("User not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return {
+    id: user._id,
+    userName: user.userName,
+    email: user.email,
+  };
+};
+

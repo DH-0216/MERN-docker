@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken";
 import app from "../src/app.js";
 import User from "../src/models/user.model.js";
 import config from "../src/config/env.js";
+import { generateToken } from "../src/services/auth.service.js";
 
 const TEST_EMAIL_USER = "testuser@test.com";
 const TEST_EMAIL_ADMIN = "testadmin@test.com";
@@ -24,14 +25,30 @@ describe("MERN Production Readiness & Security Test Suite", () => {
     }
     // Clean up any lingering test users
     await User.deleteMany({
-      email: { $in: [TEST_EMAIL_USER, TEST_EMAIL_ADMIN, "duplicate@test.com"] },
+      email: {
+        $in: [
+          TEST_EMAIL_USER,
+          TEST_EMAIL_ADMIN,
+          "duplicate@test.com",
+          "delete-me@test.com",
+          "delalias@test.com",
+        ],
+      },
     });
   });
 
   after(async () => {
     // Clean up created test data
     await User.deleteMany({
-      email: { $in: [TEST_EMAIL_USER, TEST_EMAIL_ADMIN, "duplicate@test.com"] },
+      email: {
+        $in: [
+          TEST_EMAIL_USER,
+          TEST_EMAIL_ADMIN,
+          "duplicate@test.com",
+          "delete-me@test.com",
+          "delalias@test.com",
+        ],
+      },
     });
     await mongoose.disconnect();
   });
@@ -378,4 +395,74 @@ describe("MERN Production Readiness & Security Test Suite", () => {
       }
     });
   });
+
+  // 13. Account Deletion Tests
+  describe("Account Deletion", () => {
+    let deleteTargetToken = "";
+    const DELETE_TEST_EMAIL = "delete-me@test.com";
+    const DELETE_TEST_USER = "deleteme";
+    const DELETE_TEST_PW = "DeleteMe123!";
+
+    before(async () => {
+      // Create user specifically to test deletion
+      const user = await User.create({
+        userName: DELETE_TEST_USER,
+        email: DELETE_TEST_EMAIL,
+        password: DELETE_TEST_PW,
+      });
+      deleteTargetToken = generateToken(user);
+    });
+
+    it("DELETE /api/v1/auth/profile should reject requests without token (401 Unauthorized)", async () => {
+      const res = await request(app).delete("/api/v1/auth/profile");
+      assert.equal(res.status, 401);
+      assert.equal(res.body.success, false);
+      assert.match(res.body.message, /no token provided/i);
+    });
+
+    it("DELETE /api/v1/auth/profile should delete user account when authenticated", async () => {
+      const res = await request(app)
+        .delete("/api/v1/auth/profile")
+        .set("Authorization", `Bearer ${deleteTargetToken}`);
+
+      assert.equal(res.status, 200);
+      assert.equal(res.body.success, true);
+      assert.match(res.body.message, /account deleted successfully/i);
+
+      // Verify user no longer exists in DB
+      const deletedUser = await User.findOne({ email: DELETE_TEST_EMAIL });
+      assert.equal(deletedUser, null);
+    });
+
+    it("subsequent requests with deleted user token should be rejected (401 Unauthorized)", async () => {
+      const res = await request(app)
+        .get("/api/v1/auth/profile")
+        .set("Authorization", `Bearer ${deleteTargetToken}`);
+
+      assert.equal(res.status, 401);
+      assert.equal(res.body.success, false);
+      assert.match(res.body.message, /no longer exists/i);
+    });
+
+    it("DELETE /api/v1/auth/account endpoint alias also deletes user account without password payload", async () => {
+      // Register a second user to test alias and deletion without password payload
+      const secondUser = await User.create({
+        userName: "delalias",
+        email: "delalias@test.com",
+        password: "Password123!",
+      });
+      const aliasToken = generateToken(secondUser);
+
+      const res = await request(app)
+        .delete("/api/v1/auth/account")
+        .set("Authorization", `Bearer ${aliasToken}`);
+
+      assert.equal(res.status, 200);
+      assert.equal(res.body.success, true);
+
+      const checkUser = await User.findOne({ email: "delalias@test.com" });
+      assert.equal(checkUser, null);
+    });
+  });
 });
+

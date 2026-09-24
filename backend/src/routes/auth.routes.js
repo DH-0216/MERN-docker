@@ -7,6 +7,7 @@ import {
   loginSchema,
 } from "../middleware/validate.middleware.js";
 import {
+  deleteAccount,
   getUserProfile,
   getAdminData,
   login,
@@ -23,6 +24,8 @@ router.post("/logout", logout);
 
 // Protected user routes
 router.get("/profile", authenticate, getUserProfile);
+router.delete("/profile", authenticate, deleteAccount);
+router.delete("/account", authenticate, deleteAccount);
 
 // Protected admin-only routes (Role-Based Access Control)
 router.get("/admin", authenticate, authorize("admin"), getAdminData);

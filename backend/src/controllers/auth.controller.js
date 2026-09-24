@@ -1,4 +1,9 @@
-import { getProfile, loginUser, registerUser } from "../services/auth.service.js";
+import {
+  deleteUserAccount,
+  getProfile,
+  loginUser,
+  registerUser,
+} from "../services/auth.service.js";
 import User from "../models/user.model.js";
 
 export const register = async (req, res, next) => {
@@ -82,3 +87,19 @@ export const getAdminData = async (req, res, next) => {
     next(error);
   }
 };
+
+export const deleteAccount = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const result = await deleteUserAccount(userId);
+
+    res.status(200).json({
+      success: true,
+      message: "Account deleted successfully",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
