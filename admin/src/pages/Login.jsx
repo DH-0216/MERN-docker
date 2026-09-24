@@ -110,7 +110,7 @@ export const Login = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/20 hover:opacity-95 transition-all disabled:opacity-50"
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/20 hover:opacity-95 transition-all disabled:opacity-50 cursor-pointer "
             >
               {isLoading ? (
                 <RefreshCw className="h-4 w-4 animate-spin" />
