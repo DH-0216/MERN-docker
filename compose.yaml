@@ -9,6 +9,13 @@ services:
     volumes:
       - mongo-data:/data/db
 
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
   server:
     image: dulajhashmika/server-dev:1.4.0
     container_name: server-container
@@ -21,7 +28,8 @@ services:
       - "5000:5000"
 
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
 
     volumes:
       - ./server:/app
@@ -31,6 +39,14 @@ services:
       PORT: ${PORT}
       MONGO_URI: ${MONGO_URI}
       JWT_SECRET: ${JWT_SECRET}
+
+    healthcheck:
+      test:
+        ["CMD", "wget", "--spider", "-q", "http://localhost:5000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   client:
     image: dulajhashmika/client-dev:1.5.0
@@ -44,7 +60,8 @@ services:
       - "5173:5173"
 
     depends_on:
-      - server
+      server:
+        condition: service_healthy
 
     volumes:
       - ./client:/app
@@ -52,6 +69,13 @@ services:
     environment:
       CHOKIDAR_USEPOLLING: "true"
       VITE_API_PROXY_TARGET: ${VITE_API_PROXY_TARGET:-http://server:5000}
+
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:5173/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 
 volumes:
