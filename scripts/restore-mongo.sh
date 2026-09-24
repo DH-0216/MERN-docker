@@ -14,12 +14,40 @@ if [ -z "${1:-}" ]; then
 fi
 
 BACKUP_FILE="$1"
+
+# Script directory helper
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Automatically load .env if available
+if [ -f "${ROOT_DIR}/.env" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    source "${ROOT_DIR}/.env"
+    set +a
+elif [ -f "${PWD}/.env" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    source "${PWD}/.env"
+    set +a
+fi
+
 CONTAINER_NAME="${MONGO_CONTAINER:-mongo-prod-container}"
 DB_NAME="${MONGO_DB:-dockerDB}"
 
 if [ ! -f "${BACKUP_FILE}" ]; then
     echo "🔴 Backup file not found: ${BACKUP_FILE}" >&2
     exit 1
+fi
+
+# Prepare authentication parameters if credentials are set
+AUTH_ARGS=()
+if [ -n "${MONGO_USERNAME:-}" ] && [ -n "${MONGO_PASSWORD:-}" ]; then
+    AUTH_ARGS=(
+        "--username" "${MONGO_USERNAME}"
+        "--password" "${MONGO_PASSWORD}"
+        "--authenticationDatabase" "admin"
+    )
 fi
 
 echo "⚠️  WARNING: Restoring will overwrite existing data in '${DB_NAME}' on container '${CONTAINER_NAME}'."
@@ -30,6 +58,9 @@ if [ "${CONFIRM}" != "yes" ]; then
 fi
 
 echo "==> Restoring database from '${BACKUP_FILE}'..."
-docker exec -i "${CONTAINER_NAME}" mongorestore --nsInclude="${DB_NAME}.*" --archive --gzip --drop < "${BACKUP_FILE}"
-
-echo "✅ Database restore completed successfully."
+if docker exec -i "${CONTAINER_NAME}" mongorestore "${AUTH_ARGS[@]}" --nsInclude="${DB_NAME}.*" --archive --gzip --drop < "${BACKUP_FILE}"; then
+    echo "✅ Database restore completed successfully."
+else
+    echo "🔴 Database restore failed!" >&2
+    exit 1
+fi
