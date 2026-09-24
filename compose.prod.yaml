@@ -36,7 +36,7 @@ services:
       start_period: 10s
 
   backend:
-    image: dulajhashmika/backend-prod:1.1.0
+    image: dulajhashmika/backend-prod:1.2.0
     build:
       context: ./backend
       dockerfile: Dockerfile.prod
@@ -87,7 +87,7 @@ services:
       start_period: 10s
 
   frontend:
-    image: dulajhashmika/frontend-prod:1.1.0
+    image: dulajhashmika/frontend-prod:1.2.0
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
