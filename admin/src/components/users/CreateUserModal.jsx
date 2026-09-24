@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { UserPlus, AlertCircle, RefreshCw } from "lucide-react";
 import Modal from "../common/Modal";
-import { adminService } from "../../api/adminApi";
+import { adminService, formatApiError } from "../../api/adminApi";
 
 export const CreateUserModal = ({ isOpen, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
@@ -47,8 +47,7 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }) => {
       onClose();
     } catch (err) {
       setError(
-        err.response?.data?.message ||
-          "Failed to create user. Please check the inputs.",
+        formatApiError(err, "Failed to create user. Please check the inputs."),
       );
     } finally {
       setIsSubmitting(false);

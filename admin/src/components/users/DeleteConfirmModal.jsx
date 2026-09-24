@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Trash2, AlertTriangle, RefreshCw } from "lucide-react";
 import Modal from "../common/Modal";
-import { adminService } from "../../api/adminApi";
+import { adminService, formatApiError } from "../../api/adminApi";
 
 export const DeleteConfirmModal = ({ isOpen, user, onClose, onSuccess }) => {
   const [error, setError] = useState("");
@@ -18,9 +18,7 @@ export const DeleteConfirmModal = ({ isOpen, user, onClose, onSuccess }) => {
       onSuccess();
       onClose();
     } catch (err) {
-      setError(
-        err.response?.data?.message || "Failed to delete user account.",
-      );
+      setError(formatApiError(err, "Failed to delete user account."));
     } finally {
       setIsDeleting(false);
     }

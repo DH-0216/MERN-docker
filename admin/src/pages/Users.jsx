@@ -15,7 +15,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useAuth } from "../context/useAuth";
-import { adminService } from "../api/adminApi";
+import { adminService, formatApiError } from "../api/adminApi";
 import CreateUserModal from "../components/users/CreateUserModal";
 import RoleChangeModal from "../components/users/RoleChangeModal";
 import DeleteConfirmModal from "../components/users/DeleteConfirmModal";
@@ -61,9 +61,7 @@ export const Users = () => {
           setPagination(data.pagination);
         }
       } catch (err) {
-        setError(
-          err.response?.data?.message || "Failed to load users list from server.",
-        );
+        setError(formatApiError(err, "Failed to load users list from server."));
       } finally {
         setIsLoading(false);
       }

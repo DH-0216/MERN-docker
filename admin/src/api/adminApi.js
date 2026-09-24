@@ -48,4 +48,54 @@ export const adminService = {
   checkV1Health: () => axios.get("/api/v1/health"),
 };
 
+export const formatApiError = (
+  error,
+  fallback = "An unexpected error occurred. Please try again.",
+) => {
+  if (!error) return fallback;
+
+  // 1. Prefer explicit server response message (e.g. from backend errorHandler or controllers)
+  const serverMessage = error.response?.data?.message;
+  if (serverMessage && typeof serverMessage === "string") {
+    return serverMessage;
+  }
+
+  // 2. Map HTTP status codes to user-friendly messages instead of raw status strings
+  const status = error.response?.status;
+  if (status === 401) {
+    return "Invalid email or password. Please verify your administrator credentials.";
+  }
+  if (status === 403) {
+    return "Access Denied: Your account does not have administrator privileges.";
+  }
+  if (status === 404) {
+    return "The requested record or resource was not found.";
+  }
+  if (status === 409) {
+    return "A user with this email or username already exists.";
+  }
+  if (status === 429) {
+    return "Too many requests. Please wait a moment and try again.";
+  }
+  if (status && status >= 500) {
+    return "The server encountered an error. Please try again shortly.";
+  }
+
+  // 3. Custom thrown errors (like client-side role validation)
+  if (
+    error.message &&
+    typeof error.message === "string" &&
+    !error.message.includes("status code") &&
+    !error.message.includes("Network Error")
+  ) {
+    return error.message;
+  }
+
+  if (error.message === "Network Error" || !error.response) {
+    return "Unable to connect to the server. Please verify the backend is running.";
+  }
+
+  return fallback;
+};
+
 export default adminApi;

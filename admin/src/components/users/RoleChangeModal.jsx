@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ShieldCheck, AlertCircle, RefreshCw } from "lucide-react";
 import Modal from "../common/Modal";
-import { adminService } from "../../api/adminApi";
+import { adminService, formatApiError } from "../../api/adminApi";
 
 export const RoleChangeModal = ({ isOpen, user, onClose, onSuccess }) => {
   const [error, setError] = useState("");
@@ -21,9 +21,7 @@ export const RoleChangeModal = ({ isOpen, user, onClose, onSuccess }) => {
       onSuccess();
       onClose();
     } catch (err) {
-      setError(
-        err.response?.data?.message || "Failed to update user role.",
-      );
+      setError(formatApiError(err, "Failed to update user role."));
     } finally {
       setIsSubmitting(false);
     }

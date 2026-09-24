@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import AuthShowcase from "../components/auth/AuthShowcase";
 import AuthForm from "../components/auth/AuthForm";
-import { authApi } from "../api/clientApi";
+import { authApi, formatClientApiError } from "../api/clientApi";
 
 const Auth = ({ onAuthSuccess }) => {
   const [mode, setMode] = useState("login");
@@ -34,8 +34,10 @@ const Auth = ({ onAuthSuccess }) => {
       onAuthSuccess(response.data.data.token);
     } catch (requestError) {
       setError(
-        requestError.response?.data?.message ||
-          "Something went wrong. Please try again.",
+        formatClientApiError(
+          requestError,
+          "Authentication failed. Please verify your details.",
+        ),
       );
     } finally {
       setIsLoading(false);

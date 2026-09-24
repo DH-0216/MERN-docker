@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShieldCheck, Lock, Mail, AlertCircle, ArrowRight, RefreshCw } from "lucide-react";
 import { useAuth } from "../context/useAuth";
+import { formatApiError } from "../api/adminApi";
 
 export const Login = () => {
   const navigate = useNavigate();
@@ -26,9 +27,10 @@ export const Login = () => {
       navigate("/", { replace: true });
     } catch (err) {
       setError(
-        err.message ||
-          err.response?.data?.message ||
-          "Failed to authenticate as administrator.",
+        formatApiError(
+          err,
+          "Invalid email or password. Please verify your administrator credentials.",
+        ),
       );
     } finally {
       setIsLoading(false);

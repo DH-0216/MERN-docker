@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import StatsCard from "../components/common/StatsCard";
 import CreateUserModal from "../components/users/CreateUserModal";
-import { adminService } from "../api/adminApi";
+import { adminService, formatApiError } from "../api/adminApi";
 
 export const Dashboard = () => {
   const [stats, setStats] = useState(null);
@@ -34,8 +34,10 @@ export const Dashboard = () => {
       setRecentUsers(usersRes.data?.data?.users || []);
     } catch (err) {
       setError(
-        err.response?.data?.message ||
+        formatApiError(
+          err,
           "Failed to load dashboard metrics. Ensure server is online.",
+        ),
       );
     } finally {
       setIsLoading(false);
