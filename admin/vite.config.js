@@ -4,10 +4,11 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig, loadEnv } from "vite";
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
   return {
+    base: command === "build" ? "/admin/" : "/",
     plugins: [
       react(),
       tailwindcss(),
