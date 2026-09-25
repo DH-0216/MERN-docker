@@ -18,12 +18,19 @@ adminApi.interceptors.request.use((config) => {
 adminApi.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const isLoginRequest = error.config?.url?.includes("/auth/login");
+
+    // Only redirect if this is an expired session from an authenticated route, not an initial login failure
+    if (error.response?.status === 401 && !isLoginRequest) {
       localStorage.removeItem("adminAuthToken");
       localStorage.removeItem("adminUserData");
-      // If we are not already on the login page, redirect
-      if (window.location.pathname !== "/login") {
-        window.location.href = "/login";
+
+      const base = import.meta.env.BASE_URL || "/";
+      const loginPath = `${base}login`.replace(/\/+/g, "/");
+
+      // If we are not already on the login page, redirect to admin login
+      if (!window.location.pathname.endsWith("/login")) {
+        window.location.href = loginPath;
       }
     }
     return Promise.reject(error);

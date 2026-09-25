@@ -242,7 +242,7 @@ export const System = () => {
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-white">admin</span>
               <span className="rounded-full bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-400 border border-cyan-500/20">
-                Port 5174
+                Route: /admin
               </span>
             </div>
             <p className="text-xs text-neutral-400">
@@ -254,7 +254,7 @@ export const System = () => {
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-white">client</span>
               <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-blue-400 border border-blue-500/20">
-                Port 5173
+                Route: /
               </span>
             </div>
             <p className="text-xs text-neutral-400">
@@ -266,7 +266,7 @@ export const System = () => {
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-white">server</span>
               <span className="rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-semibold text-purple-400 border border-purple-500/20">
-                Port 5000
+                Route: /api
               </span>
             </div>
             <p className="text-xs text-neutral-400">
@@ -278,7 +278,7 @@ export const System = () => {
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-white">mongo</span>
               <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400 border border-emerald-500/20">
-                Port 27017
+                Internal Network
               </span>
             </div>
             <p className="text-xs text-neutral-400">

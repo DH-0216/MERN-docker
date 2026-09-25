@@ -102,7 +102,7 @@ export const Sidebar = ({ isOpen, onClose }) => {
               </span>
             </div>
             <p className="mt-1 text-[11px] text-neutral-400">
-              Admin App running on port 5174
+              Admin Portal • Active
             </p>
           </div>
         </div>
