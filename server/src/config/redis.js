@@ -7,15 +7,10 @@ let isConnected = false;
 if (config.redisEnabled) {
   redisClient = new Redis(config.redisUrl, {
     maxRetriesPerRequest: 1,
-    enableOfflineQueue: false, // Avoid blocking commands when Redis is down
     enableReadyCheck: true,
-    lazyConnect: true,
     retryStrategy(times) {
-      if (times > 5) {
-        console.warn("⚠️ [REDIS] Max reconnect attempts reached. Backing off.");
-        return null; // Stop endless reconnection attempts
-      }
-      return Math.min(times * 300, 2000);
+      // Reconnect with backoff capped at 3s so it automatically reconnects when Redis starts
+      return Math.min(times * 300, 3000);
     },
     reconnectOnError(err) {
       const targetError = "READONLY";
@@ -43,13 +38,6 @@ if (config.redisEnabled) {
 
   redisClient.on("close", () => {
     isConnected = false;
-  });
-
-  redisClient.connect().catch((err) => {
-    console.warn(
-      "⚠️ [REDIS] Could not establish initial connection. Fallback mode will be active until Redis becomes available:",
-      err.message,
-    );
   });
 }
 
