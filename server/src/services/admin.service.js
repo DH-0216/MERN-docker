@@ -1,32 +1,61 @@
 import mongoose from "mongoose";
 import User from "../models/user.model.js";
 import { registerUser } from "./auth.service.js";
+import {
+  getCache,
+  setCache,
+  deleteCache,
+  deleteCachePattern,
+} from "./cache.service.js";
+import { getActiveUsersCount } from "./presence.service.js";
+
+const STATS_CACHE_KEY = "admin:dashboard:stats";
+
+/**
+ * Invalidate all admin dashboard and user list caches.
+ */
+const invalidateAdminCaches = async () => {
+  await Promise.all([
+    deleteCache(STATS_CACHE_KEY),
+    deleteCachePattern("admin:users:*"),
+  ]);
+};
 
 /**
  * Retrieve aggregated metrics and system health for the admin dashboard.
+ * Caches results in Redis with a 60-second TTL to reduce database load.
  */
 export const getDashboardStats = async () => {
+  // Check Redis cache first
+  const cached = await getCache(STATS_CACHE_KEY);
+  if (cached) {
+    return { ...cached, isCached: true };
+  }
+
   const now = new Date();
   const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  const [totalUsers, adminCount, newUsers24h, newUsers7d] = await Promise.all([
-    User.countDocuments(),
-    User.countDocuments({ role: "admin" }),
-    User.countDocuments({ createdAt: { $gte: oneDayAgo } }),
-    User.countDocuments({ createdAt: { $gte: sevenDaysAgo } }),
-  ]);
+  const [totalUsers, adminCount, newUsers24h, newUsers7d, activeUsersNow] =
+    await Promise.all([
+      User.countDocuments(),
+      User.countDocuments({ role: "admin" }),
+      User.countDocuments({ createdAt: { $gte: oneDayAgo } }),
+      User.countDocuments({ createdAt: { $gte: sevenDaysAgo } }),
+      getActiveUsersCount(5),
+    ]);
 
   const regularUsersCount = totalUsers - adminCount;
   const memoryUsage = process.memoryUsage();
 
-  return {
+  const data = {
     metrics: {
       totalUsers,
       adminCount,
       regularUsersCount,
       newUsers24h,
       newUsers7d,
+      activeUsersNow,
     },
     system: {
       uptime: process.uptime(),
@@ -42,10 +71,16 @@ export const getDashboardStats = async () => {
       timestamp: now.toISOString(),
     },
   };
+
+  // Cache computed metrics in Redis for 60 seconds
+  await setCache(STATS_CACHE_KEY, data, 60);
+
+  return { ...data, isCached: false };
 };
 
 /**
  * Paginated user query with optional search and role filtering.
+ * Caches query results in Redis for 30 seconds.
  */
 export const getUsersList = async ({
   page = 1,
@@ -57,6 +92,16 @@ export const getUsersList = async ({
 }) => {
   const numericPage = Math.max(1, parseInt(page, 10) || 1);
   const numericLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
+
+  const allowedSortFields = ["createdAt", "userName", "email", "role"];
+  const sortField = allowedSortFields.includes(sortBy) ? sortBy : "createdAt";
+  const sortDirection = sortOrder === "asc" ? 1 : -1;
+
+  const cacheKey = `admin:users:${numericPage}:${numericLimit}:${search}:${role}:${sortField}:${sortDirection}`;
+  const cached = await getCache(cacheKey);
+  if (cached) {
+    return { ...cached, isCached: true };
+  }
 
   const filter = {};
 
@@ -72,10 +117,6 @@ export const getUsersList = async ({
     ];
   }
 
-  const allowedSortFields = ["createdAt", "userName", "email", "role"];
-  const sortField = allowedSortFields.includes(sortBy) ? sortBy : "createdAt";
-  const sortDirection = sortOrder === "asc" ? 1 : -1;
-
   const [totalUsers, users] = await Promise.all([
     User.countDocuments(filter),
     User.find(filter)
@@ -87,7 +128,7 @@ export const getUsersList = async ({
 
   const totalPages = Math.ceil(totalUsers / numericLimit) || 1;
 
-  return {
+  const result = {
     users,
     pagination: {
       totalUsers,
@@ -96,6 +137,11 @@ export const getUsersList = async ({
       limit: numericLimit,
     },
   };
+
+  // Cache user list results in Redis for 30 seconds
+  await setCache(cacheKey, result, 30);
+
+  return { ...result, isCached: false };
 };
 
 /**
@@ -121,6 +167,9 @@ export const updateUserRole = async (userId, newRole, requestingAdminId) => {
   user.role = newRole;
   await user.save();
 
+  // Invalidate cache immediately on user role modification
+  await invalidateAdminCaches();
+
   return user.toJSON();
 };
 
@@ -143,6 +192,9 @@ export const deleteUserById = async (userId, requestingAdminId) => {
     throw error;
   }
 
+  // Invalidate cache immediately on user deletion
+  await invalidateAdminCaches();
+
   return {
     id: user._id,
     userName: user.userName,
@@ -154,5 +206,8 @@ export const deleteUserById = async (userId, requestingAdminId) => {
  * Create a new user from the admin dashboard.
  */
 export const createAdminUser = async ({ userName, email, password, role }) => {
-  return await registerUser(userName, email, password, role);
+  const result = await registerUser(userName, email, password, role);
+  // Invalidate cache immediately on user creation
+  await invalidateAdminCaches();
+  return result;
 };

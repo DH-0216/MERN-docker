@@ -10,6 +10,7 @@ import {
 } from "./middleware/error.middleware.js";
 import authRouter from "./routes/auth.routes.js";
 import adminRouter from "./routes/admin.routes.js";
+import { isRedisConnected } from "./config/redis.js";
 
 const app = express();
 
@@ -61,6 +62,7 @@ v2Router.get("/health", (req, res) => {
     data: {
       uptime: process.uptime(),
       timestamp: new Date().toISOString(),
+      redis: isRedisConnected() ? "connected" : "disconnected",
     },
   });
 });

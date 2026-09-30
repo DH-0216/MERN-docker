@@ -1,3 +1,4 @@
+import jwt from "jsonwebtoken";
 import {
   deleteUserAccount,
   getProfile,
@@ -5,6 +6,7 @@ import {
   registerUser,
 } from "../services/auth.service.js";
 import User from "../models/user.model.js";
+import { blacklistToken } from "../services/tokenBlacklist.service.js";
 
 export const register = async (req, res, next) => {
   try {
@@ -40,8 +42,19 @@ export const login = async (req, res, next) => {
 
 export const logout = async (req, res, next) => {
   try {
-    // In stateless JWT, logout is primarily handled by the client removing the token.
-    // This endpoint provides formal server-side acknowledgment and session cleanup hooks.
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.split(" ")[1];
+      try {
+        const decoded = jwt.decode(token);
+        if (decoded && decoded.exp) {
+          await blacklistToken(token, decoded.exp);
+        }
+      } catch {
+        // Fallback: Proceed with logout acknowledgment
+      }
+    }
+
     res.status(200).json({
       success: true,
       message: "Logged out successfully",

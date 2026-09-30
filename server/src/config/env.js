@@ -1,5 +1,15 @@
 import "dotenv/config";
 
+// Auto-detect if running under Node test runner or test command
+export const isTestEnv =
+  process.env.NODE_ENV === "test" ||
+  process.execArgv.includes("--test") ||
+  process.argv.some((arg) => typeof arg === "string" && arg.includes("test"));
+
+if (isTestEnv && process.env.NODE_ENV !== "test") {
+  process.env.NODE_ENV = "test";
+}
+
 const requiredEnv = ["MONGO_URI", "JWT_SECRET"];
 
 export const validateEnv = () => {
@@ -35,6 +45,10 @@ export const config = {
   mongoUri: process.env.MONGO_URI || "mongodb://localhost:27017/dockerDB",
   jwtSecret: process.env.JWT_SECRET || "development-fallback-secret-key-32-chars-long!",
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "1h",
+  redisUrl: process.env.REDIS_URL || "redis://localhost:6379",
+  redisEnabled:
+    process.env.REDIS_ENABLED !== "false" &&
+    (!isTestEnv || process.env.REDIS_TEST === "true"),
   nodeEnv: process.env.NODE_ENV || "development",
   isProduction: process.env.NODE_ENV === "production",
   allowedOrigins: process.env.ALLOWED_ORIGINS

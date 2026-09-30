@@ -1,6 +1,8 @@
 import jwt from "jsonwebtoken";
 import User from "../models/user.model.js";
 import config from "../config/env.js";
+import { isTokenBlacklisted } from "../services/tokenBlacklist.service.js";
+import { recordUserActivity } from "../services/presence.service.js";
 
 export const verifyToken = (token) => {
   return jwt.verify(token, config.jwtSecret, {
@@ -24,6 +26,15 @@ export const authenticate = async (req, res, next) => {
   }
 
   try {
+    // Check if token was invalidated via logout or admin revocation
+    const blacklisted = await isTokenBlacklisted(token);
+    if (blacklisted) {
+      return res.status(401).json({
+        success: false,
+        message: "Token has been revoked. Please sign in again.",
+      });
+    }
+
     const decoded = verifyToken(token);
     const user = await User.findById(decoded.id);
 
@@ -35,6 +46,8 @@ export const authenticate = async (req, res, next) => {
     }
 
     req.user = user;
+    // Track user active presence asynchronously
+    recordUserActivity(user._id).catch(() => {});
     next();
   } catch (error) {
     if (error.name === "TokenExpiredError") {
