@@ -3,36 +3,95 @@ import axios from "axios";
 const adminApi = axios.create({
   baseURL: "/api/v1",
   timeout: 15000,
+  withCredentials: true,
 });
+
+// In-memory admin token management
+let inMemoryAdminToken = localStorage.getItem("adminAuthToken");
+
+export const setAdminAuthToken = (token) => {
+  inMemoryAdminToken = token;
+  if (token) {
+    localStorage.setItem("adminAuthToken", token);
+  } else {
+    localStorage.removeItem("adminAuthToken");
+  }
+};
 
 // Attach Authorization header automatically if admin token exists
 adminApi.interceptors.request.use((config) => {
-  const token = localStorage.getItem("adminAuthToken");
+  const token = inMemoryAdminToken || localStorage.getItem("adminAuthToken");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-// Intercept 401s to handle token expiration
+// Refresh token queue handling for concurrent 401s
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// Intercept 401s to handle automatic token refresh
 adminApi.interceptors.response.use(
   (response) => response,
-  (error) => {
-    const isLoginRequest = error.config?.url?.includes("/auth/login");
+  async (error) => {
+    const originalRequest = error.config;
+    const isAuthRoute =
+      originalRequest?.url?.includes("/auth/login") ||
+      originalRequest?.url?.includes("/auth/refresh");
 
-    // Only redirect if this is an expired session from an authenticated route, not an initial login failure
-    if (error.response?.status === 401 && !isLoginRequest) {
-      localStorage.removeItem("adminAuthToken");
-      localStorage.removeItem("adminUserData");
+    if (error.response?.status === 401 && !originalRequest?._retry && !isAuthRoute) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return adminApi(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
 
-      const base = import.meta.env.BASE_URL || "/";
-      const loginPath = `${base}login`.replace(/\/+/g, "/");
+      originalRequest._retry = true;
+      isRefreshing = true;
 
-      // If we are not already on the login page, redirect to admin login
-      if (!window.location.pathname.endsWith("/login")) {
-        window.location.href = loginPath;
+      try {
+        const res = await axios.post("/api/v1/auth/refresh", {}, { withCredentials: true });
+        const newToken = res.data?.data?.token;
+
+        setAdminAuthToken(newToken);
+        processQueue(null, newToken);
+
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return adminApi(originalRequest);
+      } catch (refreshErr) {
+        processQueue(refreshErr, null);
+        setAdminAuthToken(null);
+        localStorage.removeItem("adminUserData");
+
+        const base = import.meta.env.BASE_URL || "/";
+        const loginPath = `${base}login`.replace(/\/+/g, "/");
+        if (!window.location.pathname.endsWith("/login")) {
+          window.location.href = loginPath;
+        }
+
+        return Promise.reject(refreshErr);
+      } finally {
+        isRefreshing = false;
       }
     }
+
     return Promise.reject(error);
   },
 );
@@ -40,6 +99,7 @@ adminApi.interceptors.response.use(
 export const authService = {
   login: (email, password) =>
     adminApi.post("/auth/login", { email, password }),
+  refresh: () => adminApi.post("/auth/refresh"),
   logout: () => adminApi.post("/auth/logout"),
   getProfile: () => adminApi.get("/auth/profile"),
 };

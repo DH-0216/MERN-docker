@@ -8,6 +8,7 @@ import {
   deleteCachePattern,
 } from "./cache.service.js";
 import { getActiveUsersCount } from "./presence.service.js";
+import { revokeAllUserRefreshTokens } from "./refreshToken.service.js";
 
 const STATS_CACHE_KEY = "admin:dashboard:stats";
 
@@ -168,8 +169,11 @@ export const updateUserRole = async (userId, newRole, requestingAdminId) => {
   user.role = newRole;
   await user.save();
 
-  // Invalidate cache immediately on user role modification
-  await invalidateAdminCaches();
+  // Invalidate cache and revoke all active refresh tokens so new role takes effect immediately
+  await Promise.all([
+    invalidateAdminCaches(),
+    revokeAllUserRefreshTokens(userId),
+  ]);
 
   return user.toJSON();
 };
@@ -193,8 +197,11 @@ export const deleteUserById = async (userId, requestingAdminId) => {
     throw error;
   }
 
-  // Invalidate cache immediately on user deletion
-  await invalidateAdminCaches();
+  // Invalidate cache and terminate all active sessions in Redis
+  await Promise.all([
+    invalidateAdminCaches(),
+    revokeAllUserRefreshTokens(userId),
+  ]);
 
   return {
     id: user._id,

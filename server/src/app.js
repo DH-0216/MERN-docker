@@ -1,6 +1,7 @@
 import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
+import cookieParser from "cookie-parser";
 import corsMiddleware from "./config/cors.js";
 import config from "./config/env.js";
 import { generalLimiter } from "./middleware/rateLimit.middleware.js";
@@ -22,6 +23,9 @@ app.use(helmet());
 
 // Cross-Origin Resource Sharing
 app.use(corsMiddleware);
+
+// Cookie parser for reading httpOnly auth cookies
+app.use(cookieParser());
 
 // Request body size limits to prevent Denial of Service
 app.use(express.json({ limit: "10kb" }));

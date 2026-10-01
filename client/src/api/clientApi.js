@@ -3,24 +3,90 @@ import axios from "axios";
 const clientApi = axios.create({
   baseURL: "/api/v1",
   timeout: 15000,
+  withCredentials: true,
 });
+
+// In-memory token management
+let inMemoryToken = localStorage.getItem("authToken");
+
+export const setClientAuthToken = (token) => {
+  inMemoryToken = token;
+  if (token) {
+    localStorage.setItem("authToken", token);
+  } else {
+    localStorage.removeItem("authToken");
+  }
+};
 
 // Automatically inject Authorization header if authToken exists
 clientApi.interceptors.request.use((config) => {
-  const token = localStorage.getItem("authToken");
+  const token = inMemoryToken || localStorage.getItem("authToken");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-// Global response interceptor for 401 handling
+// Refresh token queue handling for concurrent 401s
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// Global response interceptor for automatic 401 token refresh
 clientApi.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem("authToken");
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Do not attempt to refresh for auth endpoints that naturally return 401
+    const isAuthRoute =
+      originalRequest?.url?.includes("/auth/login") ||
+      originalRequest?.url?.includes("/auth/register") ||
+      originalRequest?.url?.includes("/auth/refresh");
+
+    if (error.response?.status === 401 && !originalRequest?._retry && !isAuthRoute) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return clientApi(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const res = await axios.post("/api/v1/auth/refresh", {}, { withCredentials: true });
+        const newToken = res.data?.data?.token;
+
+        setClientAuthToken(newToken);
+        processQueue(null, newToken);
+
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return clientApi(originalRequest);
+      } catch (refreshErr) {
+        processQueue(refreshErr, null);
+        setClientAuthToken(null);
+        return Promise.reject(refreshErr);
+      } finally {
+        isRefreshing = false;
+      }
     }
+
     return Promise.reject(error);
   },
 );
@@ -30,6 +96,8 @@ export const authApi = {
     clientApi.post("/auth/login", { email, password }),
   register: (userData) =>
     clientApi.post("/auth/register", userData),
+  refresh: () =>
+    clientApi.post("/auth/refresh"),
   logout: () =>
     clientApi.post("/auth/logout"),
   getProfile: () =>

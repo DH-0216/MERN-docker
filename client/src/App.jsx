@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Auth from "./pages/Auth";
 import Home from "./pages/Home";
+import { authApi, setClientAuthToken } from "./api/clientApi";
 
 const ProtectedRoute = ({ token, children }) => {
   return token ? children : <Navigate to="/auth" replace />;
@@ -9,16 +10,46 @@ const ProtectedRoute = ({ token, children }) => {
 
 function App() {
   const [token, setToken] = useState(() => localStorage.getItem("authToken"));
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  useEffect(() => {
+    // Attempt silent background session restore on startup via httpOnly cookie in Redis
+    authApi
+      .refresh()
+      .then((res) => {
+        const freshToken = res.data?.data?.token;
+        if (freshToken) {
+          setClientAuthToken(freshToken);
+          setToken(freshToken);
+        }
+      })
+      .catch(() => {
+        // No valid refresh cookie, reset state
+        setClientAuthToken(null);
+        setToken(null);
+      })
+      .finally(() => {
+        setIsInitializing(false);
+      });
+  }, []);
 
   const handleAuthSuccess = (authToken) => {
-    localStorage.setItem("authToken", authToken);
+    setClientAuthToken(authToken);
     setToken(authToken);
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("authToken");
+    setClientAuthToken(null);
     setToken(null);
   };
+
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-neutral-950 text-white">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <BrowserRouter>

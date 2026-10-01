@@ -12,6 +12,7 @@ import {
   getAdminData,
   login,
   logout,
+  refresh,
   register,
 } from "../controllers/auth.controller.js";
 
@@ -20,6 +21,7 @@ const router = Router();
 // Authentication endpoints (protected by strict rate limiting and schema validation)
 router.post("/register", authLimiter, validate(registerSchema), register);
 router.post("/login", authLimiter, validate(loginSchema), login);
+router.post("/refresh", authLimiter, refresh);
 router.post("/logout", logout);
 
 // Protected user routes

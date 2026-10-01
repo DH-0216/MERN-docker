@@ -19,17 +19,29 @@ export const AuthProvider = ({ children }) => {
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  // Validate session on app initialization
+  // Validate session on app initialization via silent refresh & profile verification
   const verifySession = useCallback(async () => {
-    const storedToken = localStorage.getItem("adminAuthToken");
-    if (!storedToken) {
-      setAdminUser(null);
-      setToken(null);
-      setIsLoading(false);
-      return;
-    }
-
     try {
+      // First attempt silent refresh via httpOnly cookie in Redis
+      try {
+        const refreshRes = await authService.refresh();
+        const freshToken = refreshRes.data?.data?.token;
+        if (freshToken) {
+          localStorage.setItem("adminAuthToken", freshToken);
+          setToken(freshToken);
+        }
+      } catch {
+        // Fallback: Continue to verify any existing token
+      }
+
+      const currentToken = localStorage.getItem("adminAuthToken");
+      if (!currentToken) {
+        setAdminUser(null);
+        setToken(null);
+        setIsLoading(false);
+        return;
+      }
+
       const res = await authService.getProfile();
       const userData = res.data?.data;
 

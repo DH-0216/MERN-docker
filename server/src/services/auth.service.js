@@ -4,11 +4,14 @@ import config from "../config/env.js";
 import { enqueueJob } from "./queue.service.js";
 import { deleteCache, deleteCachePattern } from "./cache.service.js";
 
+import crypto from "crypto";
+
 export const generateToken = (user) => {
   const payload = {
-    id: user._id,
+    id: user.id || user._id,
     email: user.email,
     role: user.role || "user",
+    jti: crypto.randomUUID(),
   };
   return jwt.sign(payload, config.jwtSecret, {
     expiresIn: config.jwtExpiresIn,
