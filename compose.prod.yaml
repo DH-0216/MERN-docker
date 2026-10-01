@@ -113,7 +113,7 @@ services:
       start_period: 10s
 
   server:
-    image: dulajhashmika/server-prod:1.4.0
+    image: dulajhashmika/server-prod:1.5.0
     build:
       context: ./server
       dockerfile: Dockerfile.prod
@@ -167,7 +167,7 @@ services:
       start_period: 10s
 
   client:
-    image: dulajhashmika/client-prod:1.2.0
+    image: dulajhashmika/client-prod:1.3.0
     build:
       context: ./client
       dockerfile: Dockerfile.prod
@@ -209,7 +209,7 @@ services:
       start_period: 10s
 
   admin:
-    image: dulajhashmika/admin-prod:1.1.0
+    image: dulajhashmika/admin-prod:1.2.0
     build:
       context: ./admin
       dockerfile: Dockerfile.prod
