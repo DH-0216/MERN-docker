@@ -59,6 +59,7 @@ export const getDashboardStats = async () => {
     },
     system: {
       uptime: process.uptime(),
+      serverStartTime: new Date(Date.now() - process.uptime() * 1000).toISOString(),
       nodeVersion: process.version,
       platform: process.platform,
       memory: {

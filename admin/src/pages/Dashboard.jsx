@@ -21,6 +21,7 @@ export const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [liveUptime, setLiveUptime] = useState(null);
 
   const fetchDashboardData = useCallback(async () => {
     setIsLoading(true);
@@ -48,15 +49,38 @@ export const Dashboard = () => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  const formatUptime = (seconds) => {
-    if (!seconds && seconds !== 0) return "N/A";
+  // Live ticking timer for real-time uptime
+  useEffect(() => {
+    if (!stats?.system) return;
+
+    const calcUptime = () => {
+      if (stats.system.serverStartTime) {
+        const startMs = new Date(stats.system.serverStartTime).getTime();
+        return Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+      }
+      return Math.floor(stats.system.uptime || 0);
+    };
+
+    setLiveUptime(calcUptime());
+
+    const timer = setInterval(() => {
+      setLiveUptime((prev) => (prev !== null ? prev + 1 : calcUptime()));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [stats?.system]);
+
+  const formatUptime = (totalSeconds) => {
+    if (totalSeconds === null || totalSeconds === undefined || isNaN(totalSeconds)) return "...";
+    const seconds = Math.floor(Math.max(0, totalSeconds));
     const days = Math.floor(seconds / (3600 * 24));
     const hours = Math.floor((seconds % (3600 * 24)) / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
 
-    if (days > 0) return `${days}d ${hours}h ${minutes}m`;
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    return `${minutes}m ${Math.floor(seconds % 60)}s`;
+    if (days > 0) return `${days}d ${hours}h ${minutes}m ${secs}s`;
+    if (hours > 0) return `${hours}h ${minutes}m ${secs}s`;
+    return `${minutes}m ${secs}s`;
   };
 
   const metrics = stats?.metrics;
@@ -129,7 +153,7 @@ export const Dashboard = () => {
         />
         <StatsCard
           title="Server Uptime"
-          value={system ? formatUptime(system.uptime) : "..."}
+          value={liveUptime !== null ? formatUptime(liveUptime) : "..."}
           subtitle={`Memory RSS: ${system?.memory?.rssMB || "..."} MB`}
           icon={Clock}
           colorScheme="amber"
