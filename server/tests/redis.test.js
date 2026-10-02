@@ -6,6 +6,7 @@ import app from "../src/app.js";
 import User from "../src/models/user.model.js";
 import config from "../src/config/env.js";
 import { generateToken } from "../src/services/auth.service.js";
+import { closeRedis } from "../src/config/redis.js";
 import {
   setCache,
   getCache,
@@ -75,6 +76,7 @@ describe("Redis Features & Integration Test Suite", () => {
       },
     });
     await mongoose.disconnect();
+    await closeRedis();
   });
 
   // 1. Caching Service Unit Tests

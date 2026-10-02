@@ -46,10 +46,19 @@ export const isRedisConnected = () => isConnected && redisClient !== null;
 export const closeRedis = async () => {
   if (redisClient) {
     try {
-      await redisClient.quit();
-      console.log("🔌 [REDIS] Disconnected cleanly");
+      await Promise.race([
+        redisClient.quit(),
+        new Promise((resolve) => setTimeout(resolve, 500)),
+      ]);
     } catch {
-      redisClient.disconnect();
+      // ignore
+    } finally {
+      try {
+        redisClient.disconnect();
+      } catch {
+        // ignore
+      }
+      isConnected = false;
     }
   }
 };
