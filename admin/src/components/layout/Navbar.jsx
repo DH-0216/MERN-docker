@@ -48,7 +48,7 @@ export const Navbar = ({ onOpenSidebar, pageTitle }) => {
           <button
             type="button"
             onClick={onOpenSidebar}
-            className="rounded-lg p-2 text-neutral-400 hover:bg-neutral-800 hover:text-white lg:hidden"
+            className="rounded-lg p-2 text-neutral-400 hover:bg-neutral-800 hover:text-white lg:hidden cursor-pointer"
             aria-label="Toggle menu"
           >
             <Menu className="h-5 w-5" />
@@ -68,7 +68,7 @@ export const Navbar = ({ onOpenSidebar, pageTitle }) => {
             onClick={checkPing}
             title="Click to re-ping server"
             disabled={isCheckingPing}
-            className={`hidden sm:inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium border transition-colors ${
+            className={`hidden sm:inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium border transition-colors cursor-pointer disabled:cursor-not-allowed ${
               pingStatus.ok
                 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
                 : "bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20"
@@ -104,7 +104,7 @@ export const Navbar = ({ onOpenSidebar, pageTitle }) => {
           <button
             type="button"
             onClick={() => setIsLogoutModalOpen(true)}
-            className="flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900/50 px-3 py-1.5 text-xs font-medium text-neutral-300 hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400 transition-all"
+            className="flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900/50 px-3 py-1.5 text-xs font-medium text-neutral-300 hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400 transition-all cursor-pointer"
             title="Sign out of Admin Dashboard"
           >
             <LogOut className="h-3.5 w-3.5" />
@@ -129,7 +129,7 @@ export const Navbar = ({ onOpenSidebar, pageTitle }) => {
               type="button"
               disabled={isLoggingOut}
               onClick={() => setIsLogoutModalOpen(false)}
-              className="rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-2 text-xs font-medium text-neutral-300 hover:bg-neutral-800 transition-colors"
+              className="rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-2 text-xs font-medium text-neutral-300 hover:bg-neutral-800 transition-colors cursor-pointer disabled:cursor-not-allowed"
             >
               Cancel
             </button>
@@ -137,7 +137,7 @@ export const Navbar = ({ onOpenSidebar, pageTitle }) => {
               type="button"
               disabled={isLoggingOut}
               onClick={handleConfirmLogout}
-              className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-xs font-medium text-white hover:bg-red-500 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-xs font-medium text-white hover:bg-red-500 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
             >
               {isLoggingOut && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
               <span>Sign Out</span>

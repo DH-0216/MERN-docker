@@ -70,7 +70,7 @@ export const RoleChangeModal = ({ isOpen, user, onClose, onSuccess }) => {
             type="button"
             disabled={isSubmitting}
             onClick={onClose}
-            className="rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-2 text-xs font-medium text-neutral-300 hover:bg-neutral-800 transition-colors"
+            className="rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-2 text-xs font-medium text-neutral-300 hover:bg-neutral-800 transition-colors cursor-pointer disabled:cursor-not-allowed"
           >
             Cancel
           </button>
@@ -78,7 +78,7 @@ export const RoleChangeModal = ({ isOpen, user, onClose, onSuccess }) => {
             type="button"
             disabled={isSubmitting}
             onClick={handleConfirm}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-medium text-white transition-opacity disabled:opacity-50 ${
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-medium text-white transition-opacity disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed ${
               isPromoting
                 ? "bg-purple-600 hover:bg-purple-500"
                 : "bg-cyan-600 hover:bg-cyan-500"
