@@ -1,1 +1,24 @@
 @import "tailwindcss";
+
+html,
+body,
+#root {
+  min-height: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: #0a0a0a; /* neutral-950 */
+  color-scheme: dark;
+}
+
+/* Ensure all buttons and button-like interactive elements display pointer cursor */
+button,
+[role="button"] {
+  cursor: pointer;
+}
+
+button:disabled,
+button[disabled],
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}

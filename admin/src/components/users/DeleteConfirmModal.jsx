@@ -56,7 +56,7 @@ export const DeleteConfirmModal = ({ isOpen, user, onClose, onSuccess }) => {
             type="button"
             disabled={isDeleting}
             onClick={onClose}
-            className="rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-2 text-xs font-medium text-neutral-300 hover:bg-neutral-800 transition-colors"
+            className="rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-2 text-xs font-medium text-neutral-300 hover:bg-neutral-800 transition-colors cursor-pointer disabled:cursor-not-allowed"
           >
             Cancel
           </button>
@@ -64,7 +64,7 @@ export const DeleteConfirmModal = ({ isOpen, user, onClose, onSuccess }) => {
             type="button"
             disabled={isDeleting}
             onClick={handleConfirm}
-            className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-xs font-medium text-white hover:bg-red-500 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-xs font-medium text-white hover:bg-red-500 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
           >
             {isDeleting ? (
               <RefreshCw className="h-3.5 w-3.5 animate-spin" />

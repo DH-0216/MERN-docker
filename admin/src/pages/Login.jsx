@@ -38,7 +38,7 @@ export const Login = () => {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center bg-neutral-950 px-4 py-12 selection:bg-cyan-500/30 selection:text-cyan-200">
+    <div className="relative min-h-screen overflow-hidden flex items-center justify-center bg-neutral-950 px-4 py-8 selection:bg-cyan-500/30 selection:text-cyan-200">
       {/* Background ambient glowing spheres */}
       <div className="pointer-events-none absolute -top-32 left-1/3 h-96 w-96 rounded-full bg-cyan-500/10 blur-[120px]" />
       <div className="pointer-events-none absolute -bottom-32 right-1/3 h-96 w-96 rounded-full bg-purple-600/10 blur-[120px]" />
@@ -110,7 +110,7 @@ export const Login = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/20 hover:opacity-95 transition-all disabled:opacity-50 cursor-pointer "
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-500/20 hover:opacity-95 transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <RefreshCw className="h-4 w-4 animate-spin" />

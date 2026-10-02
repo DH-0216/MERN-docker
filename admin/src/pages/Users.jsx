@@ -97,7 +97,7 @@ export const Users = () => {
             type="button"
             onClick={() => fetchUsers(pagination.currentPage)}
             disabled={isLoading}
-            className="flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900/80 px-3.5 py-2 text-xs font-medium text-neutral-300 hover:bg-neutral-800 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900/80 px-3.5 py-2 text-xs font-medium text-neutral-300 hover:bg-neutral-800 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
             <span>Refresh</span>
@@ -106,7 +106,7 @@ export const Users = () => {
           <button
             type="button"
             onClick={() => setIsCreateOpen(true)}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-cyan-500/20 hover:opacity-90 transition-opacity"
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-cyan-500/20 hover:opacity-90 transition-opacity cursor-pointer"
           >
             <UserPlus className="h-4 w-4" />
             <span>Create User</span>
@@ -270,8 +270,8 @@ export const Users = () => {
                               isCurrentAdmin
                                 ? "border-neutral-800 text-neutral-600 cursor-not-allowed"
                                 : u.role === "admin"
-                                ? "border-purple-500/20 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20"
-                                : "border-cyan-500/20 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20"
+                                ? "border-purple-500/20 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 cursor-pointer"
+                                : "border-cyan-500/20 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 cursor-pointer"
                             }`}
                             title={
                               isCurrentAdmin
@@ -302,7 +302,7 @@ export const Users = () => {
                             className={`rounded-lg border p-1.5 transition-colors ${
                               isCurrentAdmin
                                 ? "border-neutral-800 text-neutral-600 cursor-not-allowed"
-                                : "border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400"
+                                : "border-neutral-800 bg-neutral-900/60 text-neutral-400 hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400 cursor-pointer"
                             }`}
                             title={
                               isCurrentAdmin
@@ -341,7 +341,7 @@ export const Users = () => {
               type="button"
               disabled={pagination.currentPage <= 1 || isLoading}
               onClick={() => fetchUsers(pagination.currentPage - 1)}
-              className="flex items-center gap-1 rounded-lg border border-neutral-800 bg-neutral-900 px-2.5 py-1 text-xs text-neutral-300 hover:bg-neutral-800 disabled:opacity-40 transition-colors"
+              className="flex items-center gap-1 rounded-lg border border-neutral-800 bg-neutral-900 px-2.5 py-1 text-xs text-neutral-300 hover:bg-neutral-800 disabled:opacity-40 transition-colors cursor-pointer disabled:cursor-not-allowed"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
               <span>Previous</span>
@@ -357,7 +357,7 @@ export const Users = () => {
                 pagination.currentPage >= pagination.totalPages || isLoading
               }
               onClick={() => fetchUsers(pagination.currentPage + 1)}
-              className="flex items-center gap-1 rounded-lg border border-neutral-800 bg-neutral-900 px-2.5 py-1 text-xs text-neutral-300 hover:bg-neutral-800 disabled:opacity-40 transition-colors"
+              className="flex items-center gap-1 rounded-lg border border-neutral-800 bg-neutral-900 px-2.5 py-1 text-xs text-neutral-300 hover:bg-neutral-800 disabled:opacity-40 transition-colors cursor-pointer disabled:cursor-not-allowed"
             >
               <span>Next</span>
               <ChevronRight className="h-3.5 w-3.5" />
