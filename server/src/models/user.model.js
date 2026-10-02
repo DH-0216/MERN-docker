@@ -25,7 +25,7 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: [true, "Password is required"],
-      minlength: [6, "Password must be at least 6 characters long"],
+      minlength: [8, "Password must be at least 8 characters long"],
       select: false, // Do not return password by default in queries
     },
     role: {
@@ -38,6 +38,9 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   },
 );
+
+// Compound index for optimized Admin Dashboard queries (role filtering & createdAt sorting)
+userSchema.index({ role: 1, createdAt: -1 });
 
 // Hash password before saving if modified
 userSchema.pre("save", async function () {

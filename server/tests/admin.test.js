@@ -36,21 +36,21 @@ describe("Admin Dashboard & Management Test Suite", () => {
     regularUser = await User.create({
       userName: "admtestreg",
       email: "admin_test_reg@test.com",
-      password: "Password123!",
+      password: "SecurePass123!",
       role: "user",
     });
 
     adminUser = await User.create({
       userName: "admtestadm",
       email: "admin_test_adm@test.com",
-      password: "Password123!",
+      password: "SecurePass123!",
       role: "admin",
     });
 
     dummyUser = await User.create({
       userName: "admdummy",
       email: "admin_test_dummy@test.com",
-      password: "Password123!",
+      password: "SecurePass123!",
       role: "user",
     });
 
@@ -129,7 +129,7 @@ describe("Admin Dashboard & Management Test Suite", () => {
         .send({
           userName: "admcreate",
           email: "admin_created@test.com",
-          password: "Password123!",
+          password: "SecurePass123!",
           role: "user",
         });
       assert.equal(res.status, 201);

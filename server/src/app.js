@@ -4,6 +4,7 @@ import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import corsMiddleware from "./config/cors.js";
 import config from "./config/env.js";
+import { requestCorrelationMiddleware } from "./config/logger.js";
 import { generalLimiter } from "./middleware/rateLimit.middleware.js";
 import {
   errorHandler,
@@ -24,15 +25,15 @@ app.use(helmet());
 // Cross-Origin Resource Sharing
 app.use(corsMiddleware);
 
+// Structured JSON Logging & Request Correlation ID (X-Request-ID)
+app.use(requestCorrelationMiddleware);
+
 // Cookie parser for reading httpOnly auth cookies
 app.use(cookieParser());
 
 // Request body size limits to prevent Denial of Service
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true, limit: "10kb" }));
-
-// HTTP request logger
-app.use(morgan(config.isProduction ? "combined" : "dev"));
 
 // Root welcome route
 app.get("/", (req, res) => {

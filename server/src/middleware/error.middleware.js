@@ -1,4 +1,5 @@
 import config from "../config/env.js";
+import logger from "../config/logger.js";
 
 export const notFoundHandler = (req, res, next) => {
   res.status(404).json({
@@ -56,7 +57,14 @@ export const errorHandler = (err, req, res, next) => {
 
   // Hide internal server error details in production
   if (statusCode >= 500 && config.isProduction) {
-    console.error("🔴 [SERVER ERROR]", err);
+    logger.error({
+      requestId: req?.id || req?.headers?.["x-request-id"],
+      method: req?.method,
+      path: req?.originalUrl || req?.url,
+      errorName: err.name,
+      errorMessage: err.message,
+      stack: err.stack,
+    });
     message = "An unexpected internal server error occurred.";
   }
 

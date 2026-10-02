@@ -1,6 +1,6 @@
 import { Router } from "express";
 import authenticate, { authorize } from "../middleware/auth.middleware.js";
-import { authLimiter } from "../middleware/rateLimit.middleware.js";
+import { authLimiter, accountLimiter } from "../middleware/rateLimit.middleware.js";
 import {
   validate,
   registerSchema,
@@ -18,9 +18,9 @@ import {
 
 const router = Router();
 
-// Authentication endpoints (protected by strict rate limiting and schema validation)
+// Authentication endpoints (protected by dual-key rate limiting and schema validation)
 router.post("/register", authLimiter, validate(registerSchema), register);
-router.post("/login", authLimiter, validate(loginSchema), login);
+router.post("/login", authLimiter, validate(loginSchema), accountLimiter, login);
 router.post("/refresh", authLimiter, refresh);
 router.post("/logout", logout);
 

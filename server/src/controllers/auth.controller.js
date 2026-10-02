@@ -14,6 +14,7 @@ import {
   revokeAllUserRefreshTokens,
   getRefreshTokenCookieOptions,
 } from "../services/refreshToken.service.js";
+import { resetAccountLimit } from "../middleware/rateLimit.middleware.js";
 
 export const register = async (req, res, next) => {
   try {
@@ -45,6 +46,9 @@ export const login = async (req, res, next) => {
     const { email, password } = req.body;
 
     const result = await loginUser(email, password);
+
+    // Reset account brute-force counter on successful login
+    await resetAccountLimit(email);
 
     // Generate secure 30-day refresh token in Redis and set as httpOnly cookie
     const refreshToken = await createRefreshToken(

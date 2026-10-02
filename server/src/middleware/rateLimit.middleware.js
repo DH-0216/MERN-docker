@@ -32,10 +32,10 @@ export const generalLimiter = rateLimit({
   },
 });
 
-// Stricter rate limiter specifically for authentication endpoints (login, register)
+// Stricter rate limiter specifically for authentication endpoints (login, register) by IP
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // Limit each IP to 10 attempts per 15 minutes
+  max: isTestEnv ? 1000 : 10, // Limit each IP to 10 attempts per 15 minutes
   standardHeaders: true,
   legacyHeaders: false,
   passOnStoreError: true, // Allow traffic to proceed if Redis store encounters errors
@@ -47,3 +47,43 @@ export const authLimiter = rateLimit({
   },
   skipSuccessfulRequests: false,
 });
+
+/**
+ * Account-level rate limiter (Dual-Key Defense)
+ * Tracks failed login attempts per target account (rl:account:<email>).
+ * Freezes the account after 5 failed attempts per 15 minutes regardless of IP rotation.
+ */
+export const accountLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each account to 5 failed attempts per 15 minutes
+  standardHeaders: true,
+  legacyHeaders: false,
+  passOnStoreError: true,
+  validate: { keyGeneratorIpFallback: false },
+  store: createStore("account"),
+  keyGenerator: (req) => {
+    const email = req.body?.email;
+    return email ? email.toLowerCase().trim() : (req.ip || "unknown");
+  },
+  skipSuccessfulRequests: true, // Only count failed attempts (4xx/5xx responses)
+  message: {
+    success: false,
+    message:
+      "Too many failed login attempts for this account, please try again after 15 minutes.",
+  },
+});
+
+/**
+ * Reset failed login attempts counter for an account upon successful authentication.
+ */
+export const resetAccountLimit = async (email) => {
+  if (!email) return;
+  const normalized = email.toLowerCase().trim();
+  if (redisClient) {
+    try {
+      await redisClient.del(`rl:account:${normalized}`);
+    } catch {
+      // ignore
+    }
+  }
+};

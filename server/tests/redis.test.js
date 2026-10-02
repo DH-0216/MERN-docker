@@ -25,6 +25,9 @@ import {
   enqueueJob,
   registerWorker,
   stopAllWorkers,
+  getDlqJobs,
+  retryDlqJob,
+  clearDlq,
 } from "../src/services/queue.service.js";
 
 describe("Redis Features & Integration Test Suite", () => {
@@ -50,14 +53,14 @@ describe("Redis Features & Integration Test Suite", () => {
     testUser = await User.create({
       userName: "redistst",
       email: "redis_test_user@test.com",
-      password: "Password123!",
+      password: "SecurePass123!",
       role: "user",
     });
 
     adminUser = await User.create({
       userName: "redisadm",
       email: "redis_test_admin@test.com",
-      password: "Password123!",
+      password: "SecurePass123!",
       role: "admin",
     });
 
@@ -177,6 +180,40 @@ describe("Redis Features & Integration Test Suite", () => {
 
       assert.ok(enqueueResult.id);
       assert.match(enqueueResult.id, /^job_/);
+    });
+
+    it("should retry failing jobs and route to Dead-Letter Queue (DLQ) upon exceeding max retries", async () => {
+      await clearDlq("dlqTestQueue");
+      let attempts = 0;
+
+      registerWorker(
+        "dlqTestQueue",
+        async (job) => {
+          attempts++;
+          throw new Error("Simulated downstream provider failure");
+        },
+        20,
+      );
+
+      const enqueueResult = await enqueueJob(
+        "dlqTestQueue",
+        { testFail: true },
+        { maxRetries: 2, backoffDelays: [20, 20] },
+      );
+
+      assert.ok(enqueueResult.id);
+
+      // Wait for retries to complete and move to DLQ
+      await new Promise((resolve) => setTimeout(resolve, 250));
+
+      assert.ok(attempts >= 2, `Expected at least 2 attempts, got ${attempts}`);
+
+      const dlqJobs = await getDlqJobs("dlqTestQueue");
+      assert.ok(dlqJobs.length >= 1, "Job should be in Dead-Letter Queue");
+      assert.equal(dlqJobs[0].id, enqueueResult.id);
+      assert.equal(dlqJobs[0].failureReason, "Simulated downstream provider failure");
+
+      await clearDlq("dlqTestQueue");
     });
   });
 
