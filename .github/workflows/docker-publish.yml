@@ -41,7 +41,8 @@ jobs:
       - name: Determine Configuration
         id: config
         run: |
-          DOCKER_USER="${{ secrets.DOCKERHUB_USERNAME }}"
+          # Strip any accidental newlines or trailing spaces from secret
+          DOCKER_USER=$(echo "${{ secrets.DOCKERHUB_USERNAME }}" | tr -d '\r\n[:space:]')
           if [ -z "$DOCKER_USER" ]; then
             DOCKER_USER="dulajhashmika"
           fi
@@ -49,9 +50,9 @@ jobs:
           IMAGE_NAME="${DOCKER_USER}/${{ matrix.service }}-prod"
           DOCKERFILE="./${{ matrix.service }}/Dockerfile.prod"
 
-          echo "dockerfile=$DOCKERFILE" >> "$GITHUB_OUTPUT"
-          echo "image_name=$IMAGE_NAME" >> "$GITHUB_OUTPUT"
-          echo "docker_user=$DOCKER_USER" >> "$GITHUB_OUTPUT"
+          echo "dockerfile=${DOCKERFILE}" >> "$GITHUB_OUTPUT"
+          echo "image_name=${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
+          echo "docker_user=${DOCKER_USER}" >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -62,7 +63,9 @@ jobs:
       - name: Check Docker Hub Credentials
         id: check-creds
         run: |
-          if [ -n "${{ secrets.DOCKERHUB_USERNAME }}" ] && [ -n "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
+          DOCKER_USER=$(echo "${{ secrets.DOCKERHUB_USERNAME }}" | tr -d '\r\n[:space:]')
+          DOCKER_TOKEN=$(echo "${{ secrets.DOCKERHUB_TOKEN }}" | tr -d '\r\n[:space:]')
+          if [ -n "$DOCKER_USER" ] && [ -n "$DOCKER_TOKEN" ]; then
             echo "has_creds=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_creds=false" >> "$GITHUB_OUTPUT"
@@ -73,7 +76,7 @@ jobs:
         if: steps.check-creds.outputs.has_creds == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.push_to_hub == 'true')
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          username: ${{ steps.config.outputs.docker_user }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract Docker metadata
