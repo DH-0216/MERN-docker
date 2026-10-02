@@ -5,6 +5,8 @@ import mongoose from "mongoose";
 import app from "../src/app.js";
 import User from "../src/models/user.model.js";
 import config from "../src/config/env.js";
+import { closeRedis } from "../src/config/redis.js";
+import { stopAllWorkers } from "../src/services/queue.service.js";
 
 const TEST_EMAIL = "refreshtest@example.com";
 const TEST_USER = "refr_usr";
@@ -22,8 +24,10 @@ describe("Enterprise Refresh Token & Rotation (Redis + httpOnly Cookie) Test Sui
   });
 
   after(async () => {
+    stopAllWorkers();
     await User.deleteMany({ email: TEST_EMAIL });
     await mongoose.disconnect();
+    await closeRedis();
   });
 
   it("1. Registering should return access token and set httpOnly refreshToken cookie", async () => {

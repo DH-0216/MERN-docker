@@ -6,6 +6,8 @@ import app from "../src/app.js";
 import User from "../src/models/user.model.js";
 import config from "../src/config/env.js";
 import { generateToken } from "../src/services/auth.service.js";
+import { closeRedis } from "../src/config/redis.js";
+import { stopAllWorkers } from "../src/services/queue.service.js";
 
 describe("Admin Dashboard & Management Test Suite", () => {
   let regularUser;
@@ -57,6 +59,7 @@ describe("Admin Dashboard & Management Test Suite", () => {
   });
 
   after(async () => {
+    stopAllWorkers();
     await User.deleteMany({
       email: {
         $in: [
@@ -68,6 +71,7 @@ describe("Admin Dashboard & Management Test Suite", () => {
       },
     });
     await mongoose.disconnect();
+    await closeRedis();
   });
 
   describe("Admin Route Authentication & Authorization", () => {
