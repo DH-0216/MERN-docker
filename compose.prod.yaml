@@ -2,7 +2,7 @@ services:
   main-nginx:
     image: nginx:1.27-alpine
     restart: unless-stopped
-    container_name: main-nginx-container
+    container_name: mern-docker-learning-main-nginx
 
     security_opt:
       - no-new-privileges:true
@@ -45,7 +45,7 @@ services:
   mongo:
     image: mongo:7.0
     restart: unless-stopped
-    container_name: mongo-prod-container
+    container_name: mern-docker-learning-mongo-prod
 
     security_opt:
       - no-new-privileges:true
@@ -81,7 +81,7 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    container_name: redis-prod-container
+    container_name: mern-docker-learning-redis-prod
 
     security_opt:
       - no-new-privileges:true
@@ -113,13 +113,13 @@ services:
       start_period: 10s
 
   server:
-    image: server-prod
+    image: dulajhashmika/mern-docker-learning-server-prod:${IMAGE_TAG:-latest}
     build:
       context: ./server
       dockerfile: Dockerfile.prod
     init: true
     restart: unless-stopped
-    container_name: server-prod-container
+    container_name: mern-docker-learning-server-prod
     stop_grace_period: 30s
 
     security_opt:
@@ -167,12 +167,12 @@ services:
       start_period: 10s
 
   client:
-    image: client-prod
+    image: dulajhashmika/mern-docker-learning-client-prod:${IMAGE_TAG:-latest}
     build:
       context: ./client
       dockerfile: Dockerfile.prod
     restart: unless-stopped
-    container_name: client-prod-container
+    container_name: mern-docker-learning-client-prod
 
     security_opt:
       - no-new-privileges:true
@@ -209,12 +209,12 @@ services:
       start_period: 10s
 
   admin:
-    image: admin-prod
+    image: dulajhashmika/mern-docker-learning-admin-prod:${IMAGE_TAG:-latest}
     build:
       context: ./admin
       dockerfile: Dockerfile.prod
     restart: unless-stopped
-    container_name: admin-prod-container
+    container_name: mern-docker-learning-admin-prod
 
     security_opt:
       - no-new-privileges:true

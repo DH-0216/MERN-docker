@@ -15,7 +15,6 @@ FROM nginx:1.27-alpine
 
 # OCI metadata labels
 LABEL org.opencontainers.image.description="MERN Docker – Admin SPA (Production)"
-LABEL org.opencontainers.image.version="1.2.0"
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 

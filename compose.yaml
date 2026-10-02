@@ -1,7 +1,7 @@
 services:
   mongo:
     image: mongo:7.0
-    container_name: mongo-container
+    container_name: mern-docker-learning-mongo-dev
 
     ports:
       - "27017:27017"
@@ -18,7 +18,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: redis-container
+    container_name: mern-docker-learning-redis-dev
 
     ports:
       - "6379:6379"
@@ -34,8 +34,8 @@ services:
       start_period: 5s
 
   server:
-    image: server-dev
-    container_name: server-container
+    image: mern-docker-learning-server-dev
+    container_name: mern-docker-learning-server-dev
 
     build:
       context: ./server
@@ -69,8 +69,8 @@ services:
       start_period: 10s
 
   client:
-    image: client-dev
-    container_name: client-container
+    image: mern-docker-learning-client-dev
+    container_name: mern-docker-learning-client-dev
 
     build:
       context: ./client
@@ -98,8 +98,8 @@ services:
       start_period: 10s
 
   admin:
-    image: admin-dev
-    container_name: admin-container
+    image: mern-docker-learning-admin-dev
+    container_name: mern-docker-learning-admin-dev
 
     build:
       context: ./admin

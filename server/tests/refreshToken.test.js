@@ -10,7 +10,7 @@ import { stopAllWorkers } from "../src/services/queue.service.js";
 
 const TEST_EMAIL = "refreshtest@example.com";
 const TEST_USER = "refr_usr";
-const TEST_PASS = "Password123!";
+const TEST_PASS = "SecurePass123!";
 
 describe("Enterprise Refresh Token & Rotation (Redis + httpOnly Cookie) Test Suite", () => {
   let initialCookie = "";

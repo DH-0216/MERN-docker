@@ -112,10 +112,10 @@ export const CreateUserModal = ({ isOpen, onClose, onSuccess }) => {
             type="password"
             name="password"
             required
-            minLength={6}
+            minLength={8}
             value={formData.password}
             onChange={handleChange}
-            placeholder="At least 6 characters"
+            placeholder="At least 8 characters"
             className="w-full rounded-xl border border-neutral-800 bg-neutral-900/80 px-3.5 py-2.5 text-sm text-white placeholder-neutral-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 transition-colors"
           />
         </div>

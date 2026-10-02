@@ -47,7 +47,7 @@ jobs:
             DOCKER_USER="dulajhashmika"
           fi
 
-          IMAGE_NAME="${DOCKER_USER}/${{ matrix.service }}-prod"
+          IMAGE_NAME="${DOCKER_USER}/mern-docker-learning-${{ matrix.service }}-prod"
           DOCKERFILE="./${{ matrix.service }}/Dockerfile.prod"
 
           echo "dockerfile=${DOCKERFILE}" >> "$GITHUB_OUTPUT"

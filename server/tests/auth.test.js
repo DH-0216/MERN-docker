@@ -9,12 +9,13 @@ import config from "../src/config/env.js";
 import { generateToken } from "../src/services/auth.service.js";
 import { closeRedis } from "../src/config/redis.js";
 import { stopAllWorkers } from "../src/services/queue.service.js";
+import logger from "../src/config/logger.js";
 
 const TEST_EMAIL_USER = "testuser@test.com";
 const TEST_EMAIL_ADMIN = "testadmin@test.com";
 const TEST_USERNAME_USER = "testusr";
 const TEST_USERNAME_ADMIN = "testadm";
-const TEST_PASSWORD = "Password123!";
+const TEST_PASSWORD = "SecurePass123!";
 
 describe("MERN Production Readiness & Security Test Suite", () => {
   let userToken = "";
@@ -158,7 +159,46 @@ describe("MERN Production Readiness & Security Test Suite", () => {
 
       assert.equal(res.status, 400);
       assert.equal(res.body.success, false);
-      assert.match(res.body.message, /at least 6 characters/i);
+      assert.match(res.body.message, /at least 8 characters/i);
+    });
+
+    it("POST /api/v1/auth/register should fail if password lacks complexity requirements (400 Bad Request)", async () => {
+      // Missing uppercase, number, special char
+      const resNoUpper = await request(app)
+        .post("/api/v1/auth/register")
+        .send({
+          userName: "noupper",
+          email: "noupper@test.com",
+          password: "password123!",
+        });
+      assert.equal(resNoUpper.status, 400);
+      assert.equal(resNoUpper.body.success, false);
+
+      // Missing special symbol
+      const resNoSymbol = await request(app)
+        .post("/api/v1/auth/register")
+        .send({
+          userName: "nosymbol",
+          email: "nosymbol@test.com",
+          password: "Password1234",
+        });
+      assert.equal(resNoSymbol.status, 400);
+      assert.equal(resNoSymbol.body.success, false);
+      assert.match(resNoSymbol.body.message, /special symbol/i);
+    });
+
+    it("POST /api/v1/auth/register should reject common breached passwords on blacklist (400 Bad Request)", async () => {
+      const res = await request(app)
+        .post("/api/v1/auth/register")
+        .send({
+          userName: "breached",
+          email: "breached@test.com",
+          password: "Password123!",
+        });
+
+      assert.equal(res.status, 400);
+      assert.equal(res.body.success, false);
+      assert.match(res.body.message, /breached|too common/i);
     });
   });
 
@@ -325,29 +365,84 @@ describe("MERN Production Readiness & Security Test Suite", () => {
     });
   });
 
-  // 9. Security Headers (Helmet)
-  describe("Security Headers (Helmet)", () => {
+  // 9. Security Headers (Helmet) & Request Correlation ID
+  describe("Security Headers & Request Correlation ID", () => {
     it("responses should contain key security headers", async () => {
       const res = await request(app).get("/api/v1/health");
       assert.equal(res.headers["x-frame-options"], "SAMEORIGIN");
       assert.equal(res.headers["x-content-type-options"], "nosniff");
       assert.ok(res.headers["strict-transport-security"] !== undefined || true);
     });
+
+    it("should assign and return X-Request-ID correlation ID on all responses", async () => {
+      const res = await request(app).get("/api/v1/health");
+      assert.ok(res.headers["x-request-id"], "Response should have X-Request-ID header");
+      assert.ok(res.headers["x-request-id"].length > 0);
+    });
+
+    it("should preserve incoming X-Request-ID header across request lifecycle", async () => {
+      const customId = "trace-uuid-12345-test";
+      const res = await request(app)
+        .get("/api/v1/health")
+        .set("X-Request-ID", customId);
+      assert.equal(res.headers["x-request-id"], customId);
+    });
+
+    it("logger should be structured JSON logger supporting child loggers with requestId", () => {
+      assert.equal(typeof logger.info, "function");
+      assert.equal(typeof logger.error, "function");
+      assert.equal(typeof logger.child, "function");
+
+      const childLogger = logger.child({ requestId: "req-test-123" });
+      assert.ok(childLogger);
+      assert.equal(typeof childLogger.info, "function");
+    });
   });
 
-  // 10. Rate Limiting Tests
+  // 10. Rate Limiting Tests (Dual-Key Defense: IP + Target Account)
   describe("Rate Limiting on Auth Endpoints", () => {
     it("rapid login attempts should eventually trigger 429 Too Many Requests", async () => {
-      // Max in test mode is configured to 5
       let lastStatus = 200;
       for (let i = 0; i < 7; i++) {
         const res = await request(app).post("/api/v1/auth/login").send({
           email: "ratelimit@test.com",
-          password: "test",
+          password: "WrongPassword999!",
         });
         lastStatus = res.status;
       }
       assert.equal(lastStatus, 429);
+    });
+
+    it("target account rate limiter should freeze account after 5 failed login attempts", async () => {
+      const targetEmail = "bruteforce_target@test.com";
+      let statusList = [];
+
+      for (let i = 0; i < 6; i++) {
+        const res = await request(app).post("/api/v1/auth/login").send({
+          email: targetEmail,
+          password: "WrongPassword123!",
+        });
+        statusList.push(res.status);
+      }
+
+      // First 5 attempts should return 401 (credentials incorrect)
+      // The 6th attempt should be blocked by account rate limit with 429
+      assert.equal(statusList[statusList.length - 1], 429);
+    });
+  });
+
+  // 10b. MongoDB Compound Indexing
+  describe("MongoDB Compound Indexing", () => {
+    it("User schema should define compound index on { role: 1, createdAt: -1 }", () => {
+      const indexes = User.schema.indexes();
+      const hasCompoundIndex = indexes.some(
+        ([fields]) => fields.role === 1 && fields.createdAt === -1,
+      );
+      assert.equal(
+        hasCompoundIndex,
+        true,
+        "User schema must include compound index { role: 1, createdAt: -1 }",
+      );
     });
   });
 
@@ -461,7 +556,7 @@ describe("MERN Production Readiness & Security Test Suite", () => {
       const secondUser = await User.create({
         userName: "delalias",
         email: "delalias@test.com",
-        password: "Password123!",
+        password: "SecurePass123!",
       });
       const aliasToken = generateToken(secondUser);
 

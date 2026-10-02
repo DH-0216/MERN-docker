@@ -1,5 +1,46 @@
 import { z } from "zod";
 
+// NIST SP 800-63B Common Breached Passwords Blacklist
+export const BREACHED_PASSWORDS = new Set([
+  "password",
+  "password1",
+  "password12",
+  "password123",
+  "password123!",
+  "12345678",
+  "123456789",
+  "1234567890",
+  "admin1234",
+  "admin1234!",
+  "qwerty123",
+  "qwertyuiop",
+  "welcome123",
+  "welcome123!",
+  "letmein123",
+  "changeme123",
+  "iloveyou123",
+  "secret123",
+  "p@ssword1",
+  "p@ssword123",
+]);
+
+// Reusable NIST-compliant password schema:
+// - Minimum 8 characters
+// - At least 1 uppercase, 1 lowercase, 1 number, 1 special character
+// - Checked against breached password blacklist
+export const passwordComplexitySchema = z
+  .string({ required_error: "Password is required" })
+  .min(8, "Password must be at least 8 characters long")
+  .max(100, "Password must be at most 100 characters long")
+  .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+  .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+  .regex(/[0-9]/, "Password must contain at least one number")
+  .regex(/[^a-zA-Z0-9]/, "Password must contain at least one special symbol")
+  .refine(
+    (val) => !BREACHED_PASSWORDS.has(val.toLowerCase().trim()),
+    "This password is too common or breached in known security incidents. Please choose a more secure password.",
+  );
+
 export const registerSchema = z.object({
   userName: z
     .string({ required_error: "Username is required" })
@@ -15,10 +56,7 @@ export const registerSchema = z.object({
     .trim()
     .toLowerCase()
     .email("Please provide a valid email address"),
-  password: z
-    .string({ required_error: "Password is required" })
-    .min(6, "Password must be at least 6 characters long")
-    .max(100, "Password must be at most 100 characters long"),
+  password: passwordComplexitySchema,
 });
 
 export const adminCreateUserSchema = z.object({
@@ -36,10 +74,7 @@ export const adminCreateUserSchema = z.object({
     .trim()
     .toLowerCase()
     .email("Please provide a valid email address"),
-  password: z
-    .string({ required_error: "Password is required" })
-    .min(6, "Password must be at least 6 characters long")
-    .max(100, "Password must be at most 100 characters long"),
+  password: passwordComplexitySchema,
   role: z.enum(["user", "admin"]).optional().default("user"),
 });
 

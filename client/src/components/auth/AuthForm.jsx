@@ -1,4 +1,91 @@
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+
+const calculatePasswordStrength = (password = "") => {
+  if (!password) {
+    return {
+      score: 0,
+      label: "",
+      barColor: "bg-white/10",
+      textColor: "text-neutral-400",
+      bars: 0,
+      criteria: [
+        { label: "At least 8 characters", met: false },
+        { label: "Uppercase & lowercase letters", met: false },
+        { label: "At least 1 number", met: false },
+        { label: "At least 1 special character", met: false },
+      ],
+    };
+  }
+
+  const criteria = [
+    { label: "At least 8 characters", met: password.length >= 8 },
+    {
+      label: "Uppercase & lowercase",
+      met: /[a-z]/.test(password) && /[A-Z]/.test(password),
+    },
+    { label: "At least 1 number", met: /[0-9]/.test(password) },
+    {
+      label: "At least 1 symbol",
+      met: /[^A-Za-z0-9]/.test(password),
+    },
+  ];
+
+  const metCount = criteria.filter((c) => c.met).length;
+
+  if (password.length < 8) {
+    return {
+      score: 1,
+      label: "Too short (< 8 chars)",
+      barColor: "bg-rose-500",
+      textColor: "text-rose-400",
+      bars: 1,
+      criteria,
+    };
+  }
+
+  if (metCount <= 1) {
+    return {
+      score: 1,
+      label: "Weak",
+      barColor: "bg-rose-500",
+      textColor: "text-rose-400",
+      bars: 1,
+      criteria,
+    };
+  }
+
+  if (metCount === 2) {
+    return {
+      score: 2,
+      label: "Fair",
+      barColor: "bg-amber-500",
+      textColor: "text-amber-400",
+      bars: 2,
+      criteria,
+    };
+  }
+
+  if (metCount === 3) {
+    return {
+      score: 3,
+      label: "Good",
+      barColor: "bg-cyan-400",
+      textColor: "text-cyan-400",
+      bars: 3,
+      criteria,
+    };
+  }
+
+  return {
+    score: 4,
+    label: "Strong",
+    barColor: "bg-emerald-400",
+    textColor: "text-emerald-400",
+    bars: 4,
+    criteria,
+  };
+};
 
 const contentVariants = {
   initial: { opacity: 0, y: 16, filter: "blur(4px)" },
@@ -26,6 +113,8 @@ const AuthForm = ({
   onSwitchMode,
 }) => {
   const isLogin = mode === "login";
+  const [showPassword, setShowPassword] = useState(false);
+  const passwordStrength = calculatePasswordStrength(formData.password);
 
   return (
     <div
@@ -129,22 +218,115 @@ const AuthForm = ({
                 />
               </motion.label>
 
-              {/* Password Input */}
-              <motion.label layout className="block">
+              {/* Password Input with show/hide toggle */}
+              <motion.div layout className="block">
                 <span className="text-sm font-medium text-neutral-300">
                   Password
                 </span>
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={onChange}
-                  required
-                  minLength={6}
-                  className="mt-2 w-full rounded-xl border border-white/10 bg-neutral-900/90 px-4 py-3 text-white outline-none transition placeholder:text-neutral-600 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-400/20"
-                  placeholder="Enter your password"
-                />
-              </motion.label>
+                <div className="relative mt-2">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    value={formData.password}
+                    onChange={onChange}
+                    required
+                    minLength={isLogin ? 6 : 8}
+                    className="w-full rounded-xl border border-white/10 bg-neutral-900/90 pl-4 pr-11 py-3 text-white outline-none transition placeholder:text-neutral-600 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-400/20"
+                    placeholder="Enter your password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? (
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                      </svg>
+                    ) : (
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+
+                {/* Password Strength Indicator (Register Mode Only) */}
+                <AnimatePresence initial={false}>
+                  {!isLogin && formData.password.length > 0 && (
+                    <motion.div
+                      key="password-strength-meter"
+                      initial={{ opacity: 0, height: 0, y: -6 }}
+                      animate={{
+                        opacity: 1,
+                        height: "auto",
+                        y: 0,
+                        transition: { duration: 0.28, ease: "easeOut" },
+                      }}
+                      exit={{
+                        opacity: 0,
+                        height: 0,
+                        y: -6,
+                        transition: { duration: 0.2 },
+                      }}
+                      className="overflow-hidden pt-2"
+                    >
+                      {/* Strength Bars */}
+                      <div className="flex items-center gap-1.5">
+                        {[1, 2, 3, 4].map((barIndex) => (
+                          <div
+                            key={barIndex}
+                            className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
+                              barIndex <= passwordStrength.bars
+                                ? passwordStrength.barColor
+                                : "bg-white/10"
+                            }`}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Strength Label */}
+                      <div className="mt-1.5 flex items-center justify-between text-xs">
+                        <span className="text-neutral-400">Password strength:</span>
+                        <span className={`font-semibold tracking-wide transition-colors duration-200 ${passwordStrength.textColor}`}>
+                          {passwordStrength.label}
+                        </span>
+                      </div>
+
+                      {/* Criteria Checklist */}
+                      <div className="mt-2.5 grid grid-cols-1 sm:grid-cols-2 gap-1.5 rounded-xl border border-white/5 bg-neutral-900/60 p-2.5 text-xs">
+                        {passwordStrength.criteria.map((item, index) => (
+                          <div
+                            key={index}
+                            className={`flex items-center gap-1.5 transition-colors duration-200 ${
+                              item.met ? "text-emerald-300" : "text-neutral-500"
+                            }`}
+                          >
+                            <svg
+                              className={`h-3.5 w-3.5 shrink-0 transition-colors duration-200 ${
+                                item.met ? "text-emerald-400" : "text-neutral-600"
+                              }`}
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                            >
+                              {item.met ? (
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              ) : (
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                              )}
+                            </svg>
+                            <span>{item.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
 
               {/* Animated Error Alert */}
               <AnimatePresence>
