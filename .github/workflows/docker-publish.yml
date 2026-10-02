@@ -134,4 +134,5 @@ jobs:
             cd ~/mern-production
             docker compose -f compose.prod.yaml --env-file .env.production pull
             docker compose -f compose.prod.yaml --env-file .env.production up -d --remove-orphans
+            docker compose -f compose.prod.yaml --env-file .env.production exec -T main-nginx nginx -s reload || true
             docker image prune -f
