@@ -68,10 +68,10 @@ restart-dev: ## Restart development containers
 # Production Environment Commands
 # ------------------------------------------------------------------------------
 prod: ## Start production containers
-	docker compose -f compose.prod.yaml --env-file .env.production up -d
+	docker compose -f compose.prod.yaml --env-file .env.prod up -d
 
 prod-build: ## Build and start production containers
-	docker compose -f compose.prod.yaml --env-file .env.production up --build -d
+	docker compose -f compose.prod.yaml --env-file .env.prod up --build -d
 
 prod-down: ## Stop production containers
 	docker compose -f compose.prod.yaml down
@@ -106,7 +106,7 @@ seed-admin: ## Seed default admin user into database
 
 validate: ## Validate Docker compose configuration files
 	docker compose config --dry-run
-	docker compose -f compose.prod.yaml --env-file .env.production.example config --dry-run
+	docker compose -f compose.prod.yaml --env-file .env.prod.example config --dry-run
 
 # ------------------------------------------------------------------------------
 # Container Debugging & Shell Access

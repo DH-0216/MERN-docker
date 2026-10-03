@@ -144,7 +144,7 @@ jobs:
         run: docker compose config --dry-run
 
       - name: Validate Production Compose File
-        run: docker compose -f compose.prod.yaml --env-file .env.production.example config --dry-run
+        run: docker compose -f compose.prod.yaml --env-file .env.prod.example config --dry-run
 
       - name: Lint Dockerfiles
         uses: hadolint/hadolint-action@v3.1.0
