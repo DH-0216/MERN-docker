@@ -145,7 +145,7 @@ Copy the example environment files:
 cp .env.example .env
 
 # Production environment file
-cp .env.production.example .env.production
+cp .env.prod.example .env.prod
 ```
 
 ### Key Environment Variables
@@ -163,7 +163,7 @@ cp .env.production.example .env.production
 | `ADMIN_PASSWORD` | Initial seeded administrator password (NIST compliant) | `Admin123456!` |
 
 > [!WARNING]
-> **Production Security:** Never deploy with default secrets or passwords! Generate a unique 64-character `JWT_SECRET` (`openssl rand -hex 32`), and set strong, distinct passwords for `MONGO_PASSWORD` and `ADMIN_PASSWORD` in `.env.production`. Real `.env` and `.env.production` files are explicitly excluded by `.gitignore` and should never be committed to source control.
+> **Production Security:** Never deploy with default secrets or passwords! Generate a unique 64-character `JWT_SECRET` (`openssl rand -hex 32`), and set strong, distinct passwords for `MONGO_PASSWORD` and `ADMIN_PASSWORD` in `.env.prod`. Real `.env` and `.env.prod` files are explicitly excluded by `.gitignore` and should never be committed to source control.
 
 ---
 
@@ -217,7 +217,7 @@ The production deployment uses `compose.prod.yaml` featuring:
 make prod-build
 
 # Or directly using Docker Compose
-docker compose -f compose.prod.yaml --env-file .env.production up --build -d
+docker compose -f compose.prod.yaml --env-file .env.prod up --build -d
 ```
 
 ### Accessing Production Endpoints
