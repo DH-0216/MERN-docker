@@ -229,6 +229,15 @@ All traffic is routed through the single entry gateway:
 - **Backend REST API:** `http://localhost/api/v1/...`
 - **Gateway Health Check:** `http://localhost/healthz`
 
+### 🔄 Automated Health Check & Rollback
+
+The production deployment pipeline (`.github/workflows/deploy.yml` and `scripts/deploy.sh`) provides zero-downtime resilience:
+1. **Active Image Snapshot:** Before pulling updates, currently running images are backed up locally with the `:rollback-backup` tag.
+2. **Deterministic Startup:** Starts updated containers with `docker compose up -d --wait` (Compose verifies internal Docker health checks before exiting).
+3. **Live HTTP Probes:** Probes `http://127.0.0.1/api/v1/health` and `http://127.0.0.1/` through the Nginx gateway (retrying up to 12 attempts).
+4. **Instant Rollback:** If any probe or container fails, the pipeline dumps recent server error logs, immediately re-launches the `:rollback-backup` image family, and exits with code 1 to alert GitHub Actions.
+5. **Safe Cleanup:** Only prunes dangling images if the deployment and all health checks pass.
+
 ---
 
 ## 🔒 Security & Resilience
