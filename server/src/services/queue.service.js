@@ -256,11 +256,3 @@ export const stopAllWorkers = () => {
 
   workers.clear();
 };
-
-// Initialize default background email worker
-registerWorker("emailQueue", async (job) => {
-  const { type, email, userName } = job.payload;
-  console.log(
-    `📨 [BACKGROUND EMAIL WORKER] Processed "${type}" notification for ${userName || "User"} (${email}) [Job ID: ${job.id}]`,
-  );
-});

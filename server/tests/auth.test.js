@@ -67,12 +67,46 @@ describe("MERN Production Readiness & Security Test Suite", () => {
       assert.equal(res.body.message, "Server is healthy");
     });
 
-    it("GET /api/v2/health should return 200 with uptime and timestamp", async () => {
+    it("GET /api/v2/health should return 200 with uptime, serverStartTime, and service statuses", async () => {
       const res = await request(app).get("/api/v2/health");
       assert.equal(res.status, 200);
       assert.equal(res.body.status, "success");
       assert.ok(typeof res.body.data.uptime === "number");
+      assert.ok(Number.isInteger(res.body.data.uptime));
+      assert.ok(res.body.data.serverStartTime);
+      assert.ok(!isNaN(Date.parse(res.body.data.serverStartTime)));
       assert.ok(res.body.data.timestamp);
+      assert.equal(res.body.data.mongo, "connected");
+      assert.ok(res.body.data.services);
+      assert.equal(res.body.data.services.database, "connected");
+      assert.ok(["connected", "disconnected"].includes(res.body.data.services.redis));
+    });
+
+    it("GET /api/v2/health should return 503 degraded status if database connection is lost", async () => {
+      Object.defineProperty(mongoose.connection, "readyState", {
+        value: 0,
+        configurable: true,
+        writable: true,
+      });
+
+      try {
+        const res = await request(app).get("/api/v2/health");
+        assert.equal(res.status, 503);
+        assert.equal(res.body.status, "degraded");
+        assert.equal(res.body.data.mongo, "disconnected");
+      } finally {
+        delete mongoose.connection.readyState;
+      }
+    });
+
+    it("GET /api/v2/health should bypass rate limiting", async () => {
+      const requests = Array.from({ length: 15 }, () =>
+        request(app).get("/api/v2/health")
+      );
+      const responses = await Promise.all(requests);
+      responses.forEach((res) => {
+        assert.notEqual(res.status, 429);
+      });
     });
   });
 

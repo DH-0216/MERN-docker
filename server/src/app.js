@@ -12,6 +12,7 @@ import {
 } from "./middleware/error.middleware.js";
 import authRouter from "./routes/auth.routes.js";
 import adminRouter from "./routes/admin.routes.js";
+import mongoose from "mongoose";
 import { isRedisConnected } from "./config/redis.js";
 
 const app = express();
@@ -57,17 +58,35 @@ v1Router.get("/health", (req, res) => {
 v1Router.use("/auth", authRouter);
 v1Router.use("/admin", adminRouter);
 
-// API v2 Router
+// API v2 Router - Comprehensive readiness and diagnostics probe
 const v2Router = express.Router();
 v2Router.get("/health", (req, res) => {
   res.set("Cache-Control", "no-store");
-  res.status(200).json({
-    status: "success",
-    message: "Server is healthy",
+
+  const uptimeSeconds = Math.floor(process.uptime());
+  const mongoConnected = mongoose.connection.readyState === 1;
+  const redisConnected = isRedisConnected();
+  const isHealthy = mongoConnected;
+
+  const httpStatus = isHealthy ? 200 : 503;
+
+  res.status(httpStatus).json({
+    status: isHealthy ? "success" : "degraded",
+    message: isHealthy
+      ? "Server is healthy"
+      : "Database connection is unavailable",
     data: {
-      uptime: process.uptime(),
+      uptime: uptimeSeconds,
+      serverStartTime: new Date(
+        Date.now() - uptimeSeconds * 1000,
+      ).toISOString(),
       timestamp: new Date().toISOString(),
-      redis: isRedisConnected() ? "connected" : "disconnected",
+      redis: redisConnected ? "connected" : "disconnected",
+      mongo: mongoConnected ? "connected" : "disconnected",
+      services: {
+        database: mongoConnected ? "connected" : "disconnected",
+        redis: redisConnected ? "connected" : "disconnected",
+      },
     },
   });
 });
