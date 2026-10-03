@@ -1,7 +1,6 @@
 import User from "../models/user.model.js";
 import jwt from "jsonwebtoken";
 import config from "../config/env.js";
-import { enqueueJob } from "./queue.service.js";
 import { deleteCache, deleteCachePattern } from "./cache.service.js";
 
 import crypto from "crypto";
@@ -43,14 +42,6 @@ export const registerUser = async (userName, email, password, role = "user") => 
     password,
     role: role === "admin" ? "admin" : "user",
   });
-
-  // Enqueue background welcome email job via Redis queue (non-blocking)
-  enqueueJob("emailQueue", {
-    type: "welcome",
-    email: user.email,
-    userName: user.userName,
-    userId: user._id,
-  }).catch(() => {});
 
   // Invalidate cached admin dashboard metrics & user lists
   deleteCache("admin:dashboard:stats").catch(() => {});
