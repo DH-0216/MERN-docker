@@ -7,6 +7,7 @@ import User from "../src/models/user.model.js";
 import config from "../src/config/env.js";
 import { closeRedis } from "../src/config/redis.js";
 import { stopAllWorkers } from "../src/services/queue.service.js";
+import { setRotationGracePeriodSeconds } from "../src/services/refreshToken.service.js";
 
 const TEST_EMAIL = "refreshtest@example.com";
 const TEST_USER = "refr_usr";
@@ -143,5 +144,33 @@ describe("Enterprise Refresh Token & Rotation (Redis + httpOnly Cookie) Test Sui
       .set("Cookie", [activeCookie]);
 
     assert.equal(afterLogoutRefresh.status, 401);
+  });
+
+  it("6. Token rotation grace period allows duplicate in-flight requests without triggering security breach", async () => {
+    setRotationGracePeriodSeconds(10);
+    try {
+      const loginRes = await request(app)
+        .post("/api/v1/auth/login")
+        .send({ email: TEST_EMAIL, password: TEST_PASS });
+
+      const tokenCookie = loginRes.headers["set-cookie"]
+        .find((c) => c.startsWith("refreshToken="))
+        .split(";")[0];
+
+      // First request rotates the token
+      const res1 = await request(app)
+        .post("/api/v1/auth/refresh")
+        .set("Cookie", [tokenCookie]);
+      assert.equal(res1.status, 200);
+
+      // Second duplicate in-flight request with old cookie succeeds under grace period
+      const res2 = await request(app)
+        .post("/api/v1/auth/refresh")
+        .set("Cookie", [tokenCookie]);
+      assert.equal(res2.status, 200);
+      assert.equal(res2.body.data.token, res1.body.data.token, "Grace period must return identical successor access token");
+    } finally {
+      setRotationGracePeriodSeconds(0);
+    }
   });
 });

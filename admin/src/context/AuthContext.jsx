@@ -1,59 +1,44 @@
 import { useState, useEffect, useCallback } from "react";
-import { authService } from "../api/adminApi";
+import { authService, setAdminAuthToken } from "../api/adminApi";
 import { AuthContext } from "./authContextInstance";
 
 export const AuthProvider = ({ children }) => {
-  const [token, setToken] = useState(() =>
-    localStorage.getItem("adminAuthToken"),
-  );
-  const [adminUser, setAdminUser] = useState(() => {
-    const cached = localStorage.getItem("adminUserData");
-    if (cached) {
-      try {
-        return JSON.parse(cached);
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  });
+  const [token, setToken] = useState(null);
+  const [adminUser, setAdminUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Validate session on app initialization via silent refresh & profile verification
   const verifySession = useCallback(async () => {
     try {
-      // First attempt silent refresh via httpOnly cookie in Redis
-      try {
-        const refreshRes = await authService.refresh();
-        const freshToken = refreshRes.data?.data?.token;
-        if (freshToken) {
-          localStorage.setItem("adminAuthToken", freshToken);
-          setToken(freshToken);
-        }
-      } catch {
-        // Fallback: Continue to verify any existing token
-      }
+      // Attempt silent refresh via httpOnly cookie in Redis
+      const refreshRes = await authService.refresh();
+      const freshToken = refreshRes.data?.data?.token;
+      const refreshedUser = refreshRes.data?.data?.user;
 
-      const currentToken = localStorage.getItem("adminAuthToken");
-      if (!currentToken) {
+      if (!freshToken) {
+        setAdminAuthToken(null);
         setAdminUser(null);
         setToken(null);
-        setIsLoading(false);
         return;
       }
 
-      const res = await authService.getProfile();
-      const userData = res.data?.data;
+      setAdminAuthToken(freshToken);
+      setToken(freshToken);
+
+      // Fetch fresh profile or use user data from refresh response
+      let userData = refreshedUser;
+      if (!userData) {
+        const res = await authService.getProfile();
+        userData = res.data?.data;
+      }
 
       if (userData?.role !== "admin") {
         throw new Error("Access restricted: Administrator role required.");
       }
 
       setAdminUser(userData);
-      localStorage.setItem("adminUserData", JSON.stringify(userData));
     } catch {
-      localStorage.removeItem("adminAuthToken");
-      localStorage.removeItem("adminUserData");
+      setAdminAuthToken(null);
       setAdminUser(null);
       setToken(null);
     } finally {
@@ -75,8 +60,7 @@ export const AuthProvider = ({ children }) => {
       );
     }
 
-    localStorage.setItem("adminAuthToken", receivedToken);
-    localStorage.setItem("adminUserData", JSON.stringify(user));
+    setAdminAuthToken(receivedToken);
     setToken(receivedToken);
     setAdminUser(user);
     return user;
@@ -88,8 +72,7 @@ export const AuthProvider = ({ children }) => {
     } catch {
       // Ignore network failures on logout
     } finally {
-      localStorage.removeItem("adminAuthToken");
-      localStorage.removeItem("adminUserData");
+      setAdminAuthToken(null);
       setToken(null);
       setAdminUser(null);
     }

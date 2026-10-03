@@ -16,7 +16,7 @@ const Home = ({ token, onLogout }) => {
   const [isModalLoading, setIsModalLoading] = useState(false);
   const [modalError, setModalError] = useState("");
 
-  const activeToken = token || localStorage.getItem("authToken");
+  const activeToken = token;
 
   const handleOpenLogoutModal = () => {
     setModalError("");

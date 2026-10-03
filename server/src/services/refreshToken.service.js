@@ -1,15 +1,24 @@
 import crypto from "crypto";
 import { redisClient, isRedisConnected } from "../config/redis.js";
 import User from "../models/user.model.js";
-import config from "../config/env.js";
+import config, { isTestEnv } from "../config/env.js";
 import { generateToken } from "./auth.service.js";
 
 // In-memory fallback map for test environments or Redis downtime
 const memoryRefreshTokens = new Map();
 const memoryRevokedTokens = new Map();
+const memoryGraceTokens = new Map();
 
 const REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
 const REUSE_DETECTION_WINDOW_SECONDS = 300; // 5 minutes to detect compromised tokens
+export let ROTATION_GRACE_PERIOD_SECONDS = parseInt(
+  process.env.REFRESH_TOKEN_GRACE_PERIOD || (isTestEnv ? "0" : "15"),
+  10,
+);
+
+export const setRotationGracePeriodSeconds = (sec) => {
+  ROTATION_GRACE_PERIOD_SECONDS = sec;
+};
 
 /**
  * Cookie options adhering to OWASP security guidelines
@@ -85,6 +94,7 @@ export const revokeAllUserRefreshTokens = async (userId) => {
   for (const [t, data] of memoryRefreshTokens.entries()) {
     if (data.userId === idStr) {
       memoryRefreshTokens.delete(t);
+      memoryGraceTokens.delete(t);
     }
   }
 
@@ -95,6 +105,7 @@ export const revokeAllUserRefreshTokens = async (userId) => {
         const pipeline = redisClient.pipeline();
         for (const token of tokens) {
           pipeline.del(`rt:${token}`);
+          pipeline.del(`grace_rt:${token}`);
         }
         pipeline.del(`user:${idStr}:rts`);
         await pipeline.exec();
@@ -115,6 +126,7 @@ export const revokeRefreshToken = async (token) => {
   const memData = memoryRefreshTokens.get(token);
   const userId = memData?.userId;
   memoryRefreshTokens.delete(token);
+  memoryGraceTokens.delete(token);
 
   if (isRedisConnected()) {
     try {
@@ -130,6 +142,7 @@ export const revokeRefreshToken = async (token) => {
 
       const pipeline = redisClient.pipeline();
       pipeline.del(`rt:${token}`);
+      pipeline.del(`grace_rt:${token}`);
       if (resolvedUserId) {
         pipeline.srem(`user:${resolvedUserId}:rts`, token);
       }
@@ -143,6 +156,9 @@ export const revokeRefreshToken = async (token) => {
 /**
  * Rotate a refresh token: verifies existing token, detects replay attacks / token theft,
  * and issues a fresh Access Token and a fresh Refresh Token.
+ * 
+ * Supports a configurable Grace Period (RFC 6749 / Auth0 Leeway pattern) to smoothly
+ * handle React StrictMode double mounts, multi-tab browsing, and network retries.
  * 
  * @param {string} currentToken - The incoming refresh token from httpOnly cookie
  * @param {string} [userAgent]
@@ -163,8 +179,40 @@ export const rotateRefreshToken = async (currentToken, userAgent = "", ip = "") 
       const raw = await redisClient.get(`rt:${currentToken}`);
       if (raw) {
         sessionData = JSON.parse(raw);
-      } else {
-        // Check if token was previously revoked (Reuse Detection / Token Theft!)
+      }
+    } catch (err) {
+      console.warn("⚠️ [REFRESH TOKEN ERROR] Redis lookup failed, checking fallback:", err.message);
+    }
+  }
+
+  // Grace Period Check: If token was rotated within the grace window, return successor tokens gracefully
+  if (!sessionData && ROTATION_GRACE_PERIOD_SECONDS > 0) {
+    let graceRecord = memoryGraceTokens.get(currentToken);
+
+    if (isRedisConnected()) {
+      try {
+        const rawGrace = await redisClient.get(`grace_rt:${currentToken}`);
+        if (rawGrace) {
+          graceRecord = JSON.parse(rawGrace);
+        }
+      } catch (err) {
+        console.warn("⚠️ [REFRESH TOKEN ERROR] Grace lookup failed:", err.message);
+      }
+    }
+
+    if (graceRecord) {
+      return {
+        accessToken: graceRecord.accessToken,
+        refreshToken: graceRecord.refreshToken,
+        user: graceRecord.user,
+      };
+    }
+  }
+
+  // Reuse Detection: If not active and not in grace period, inspect for breach
+  if (!sessionData) {
+    if (isRedisConnected()) {
+      try {
         const isRevoked = await redisClient.get(`revoked_rt:${currentToken}`);
         if (isRevoked) {
           const reusedPayload = JSON.parse(isRevoked);
@@ -177,16 +225,11 @@ export const rotateRefreshToken = async (currentToken, userAgent = "", ip = "") 
           error.statusCode = 401;
           throw error;
         }
-        sessionData = null;
+      } catch (err) {
+        if (err.statusCode) throw err;
       }
-    } catch (err) {
-      if (err.statusCode) throw err;
-      console.warn("⚠️ [REFRESH TOKEN ERROR] Redis lookup failed, checking fallback:", err.message);
     }
-  }
 
-  // Check memory fallback for reuse detection
-  if (!sessionData) {
     if (memoryRevokedTokens.has(currentToken)) {
       const reusedPayload = memoryRevokedTokens.get(currentToken);
       await revokeAllUserRefreshTokens(reusedPayload.userId);
@@ -214,24 +257,6 @@ export const rotateRefreshToken = async (currentToken, userAgent = "", ip = "") 
   memoryRevokedTokens.set(currentToken, sessionData);
   setTimeout(() => memoryRevokedTokens.delete(currentToken), REUSE_DETECTION_WINDOW_SECONDS * 1000).unref();
 
-  if (isRedisConnected()) {
-    try {
-      const pipeline = redisClient.pipeline();
-      pipeline.del(`rt:${currentToken}`);
-      pipeline.srem(`user:${sessionData.userId}:rts`, currentToken);
-      // Mark old token as revoked in Redis for reuse detection window
-      pipeline.set(
-        `revoked_rt:${currentToken}`,
-        JSON.stringify(sessionData),
-        "EX",
-        REUSE_DETECTION_WINDOW_SECONDS,
-      );
-      await pipeline.exec();
-    } catch (err) {
-      console.warn("⚠️ [REFRESH TOKEN ERROR] Failed to record token rotation in Redis:", err.message);
-    }
-  }
-
   // Generate a brand new refresh token under the same token family
   const newRefreshToken = await createRefreshToken(
     user,
@@ -242,10 +267,54 @@ export const rotateRefreshToken = async (currentToken, userAgent = "", ip = "") 
 
   // Generate a brand new 15-minute Access Token
   const newAccessToken = generateToken(user);
+  const userJson = user.toJSON();
+
+  // Store in Redis & record grace period mapping
+  if (isRedisConnected()) {
+    try {
+      const pipeline = redisClient.pipeline();
+      pipeline.del(`rt:${currentToken}`);
+      pipeline.srem(`user:${sessionData.userId}:rts`, currentToken);
+      pipeline.set(
+        `revoked_rt:${currentToken}`,
+        JSON.stringify(sessionData),
+        "EX",
+        REUSE_DETECTION_WINDOW_SECONDS,
+      );
+
+      if (ROTATION_GRACE_PERIOD_SECONDS > 0) {
+        const gracePayload = {
+          accessToken: newAccessToken,
+          refreshToken: newRefreshToken,
+          user: userJson,
+        };
+        pipeline.set(
+          `grace_rt:${currentToken}`,
+          JSON.stringify(gracePayload),
+          "EX",
+          ROTATION_GRACE_PERIOD_SECONDS,
+        );
+      }
+
+      await pipeline.exec();
+    } catch (err) {
+      console.warn("⚠️ [REFRESH TOKEN ERROR] Failed to record token rotation in Redis:", err.message);
+    }
+  }
+
+  if (ROTATION_GRACE_PERIOD_SECONDS > 0) {
+    const gracePayload = {
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+      user: userJson,
+    };
+    memoryGraceTokens.set(currentToken, gracePayload);
+    setTimeout(() => memoryGraceTokens.delete(currentToken), ROTATION_GRACE_PERIOD_SECONDS * 1000).unref();
+  }
 
   return {
     accessToken: newAccessToken,
     refreshToken: newRefreshToken,
-    user: user.toJSON(),
+    user: userJson,
   };
 };
