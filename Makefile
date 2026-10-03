@@ -82,6 +82,9 @@ prod-logs: ## Follow production logs
 restart-prod: ## Restart production containers
 	docker compose -f compose.prod.yaml restart
 
+deploy: ## Deploy production stack with automated healthcheck & rollback (Usage: make deploy TAG=latest)
+	bash ./scripts/deploy.sh $(or $(TAG),latest)
+
 # ------------------------------------------------------------------------------
 # Application & Quality Commands
 # ------------------------------------------------------------------------------
