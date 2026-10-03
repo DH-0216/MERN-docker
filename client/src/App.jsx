@@ -9,7 +9,7 @@ const ProtectedRoute = ({ token, children }) => {
 };
 
 function App() {
-  const [token, setToken] = useState(() => localStorage.getItem("authToken"));
+  const [token, setToken] = useState(null);
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {

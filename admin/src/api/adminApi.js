@@ -6,23 +6,19 @@ const adminApi = axios.create({
   withCredentials: true,
 });
 
-// In-memory admin token management
-let inMemoryAdminToken = localStorage.getItem("adminAuthToken");
+// Strictly In-Memory Admin Token Management (OWASP compliant: no localStorage)
+let inMemoryAdminToken = null;
 
 export const setAdminAuthToken = (token) => {
   inMemoryAdminToken = token;
-  if (token) {
-    localStorage.setItem("adminAuthToken", token);
-  } else {
-    localStorage.removeItem("adminAuthToken");
-  }
 };
+
+export const getAdminAuthToken = () => inMemoryAdminToken;
 
 // Attach Authorization header automatically if admin token exists
 adminApi.interceptors.request.use((config) => {
-  const token = inMemoryAdminToken || localStorage.getItem("adminAuthToken");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (inMemoryAdminToken) {
+    config.headers.Authorization = `Bearer ${inMemoryAdminToken}`;
   }
   return config;
 });
@@ -78,7 +74,6 @@ adminApi.interceptors.response.use(
       } catch (refreshErr) {
         processQueue(refreshErr, null);
         setAdminAuthToken(null);
-        localStorage.removeItem("adminUserData");
 
         const base = import.meta.env.BASE_URL || "/";
         const loginPath = `${base}login`.replace(/\/+/g, "/");

@@ -6,23 +6,19 @@ const clientApi = axios.create({
   withCredentials: true,
 });
 
-// In-memory token management
-let inMemoryToken = localStorage.getItem("authToken");
+// Strictly In-Memory Access Token Management (OWASP compliant: no localStorage)
+let inMemoryToken = null;
 
 export const setClientAuthToken = (token) => {
   inMemoryToken = token;
-  if (token) {
-    localStorage.setItem("authToken", token);
-  } else {
-    localStorage.removeItem("authToken");
-  }
 };
 
-// Automatically inject Authorization header if authToken exists
+export const getClientAuthToken = () => inMemoryToken;
+
+// Automatically inject Authorization header if in-memory token exists
 clientApi.interceptors.request.use((config) => {
-  const token = inMemoryToken || localStorage.getItem("authToken");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (inMemoryToken) {
+    config.headers.Authorization = `Bearer ${inMemoryToken}`;
   }
   return config;
 });
