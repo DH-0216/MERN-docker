@@ -264,7 +264,7 @@ Every request is stamped with an `X-Request-ID` header. Structured JSON logs are
 ```
 
 ### 3. Background Job Queue & Dead-Letter Queue (DLQ)
-- Asynchronous tasks (such as welcome emails) are dispatched into Redis-backed queues.
+- Asynchronous background tasks are dispatched into Redis-backed queues.
 - If processing throws an error, the job retries up to 3 times with exponential backoff (`5s`, `15s`, `60s`).
 - Exhausted jobs are moved to `queue:dlq:<queueName>` with error stacks for administrator inspection rather than being dropped silently.
 
