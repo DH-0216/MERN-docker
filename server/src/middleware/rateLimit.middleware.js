@@ -26,6 +26,11 @@ export const generalLimiter = rateLimit({
   legacyHeaders: false,
   passOnStoreError: true, // Allow traffic to proceed if Redis store encounters errors
   store: createStore("general"),
+  skip: (req) =>
+    req.path === "/v1/health" ||
+    req.path === "/v2/health" ||
+    req.path.endsWith("/health") ||
+    req.originalUrl?.includes("/health"),
   message: {
     success: false,
     message: "Too many requests from this IP, please try again after 15 minutes.",
