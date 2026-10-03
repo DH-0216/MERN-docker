@@ -13,24 +13,34 @@ function App() {
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     // Attempt silent background session restore on startup via httpOnly cookie in Redis
     authApi
       .refresh()
       .then((res) => {
         const freshToken = res.data?.data?.token;
-        if (freshToken) {
+        if (freshToken && isMounted) {
           setClientAuthToken(freshToken);
           setToken(freshToken);
         }
       })
       .catch(() => {
         // No valid refresh cookie, reset state
-        setClientAuthToken(null);
-        setToken(null);
+        if (isMounted) {
+          setClientAuthToken(null);
+          setToken(null);
+        }
       })
       .finally(() => {
-        setIsInitializing(false);
+        if (isMounted) {
+          setIsInitializing(false);
+        }
       });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleAuthSuccess = (authToken) => {

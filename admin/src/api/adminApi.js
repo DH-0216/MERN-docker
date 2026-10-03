@@ -96,10 +96,19 @@ adminApi.interceptors.response.use(
   },
 );
 
+let adminRefreshPromise = null;
+
 export const authService = {
   login: (email, password) =>
     adminApi.post("/auth/login", { email, password }),
-  refresh: () => adminApi.post("/auth/refresh"),
+  refresh: () => {
+    if (!adminRefreshPromise) {
+      adminRefreshPromise = adminApi.post("/auth/refresh").finally(() => {
+        adminRefreshPromise = null;
+      });
+    }
+    return adminRefreshPromise;
+  },
   logout: () => adminApi.post("/auth/logout"),
   getProfile: () => adminApi.get("/auth/profile"),
 };

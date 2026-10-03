@@ -91,13 +91,21 @@ clientApi.interceptors.response.use(
   },
 );
 
+let refreshPromise = null;
+
 export const authApi = {
   login: (email, password) =>
     clientApi.post("/auth/login", { email, password }),
   register: (userData) =>
     clientApi.post("/auth/register", userData),
-  refresh: () =>
-    clientApi.post("/auth/refresh"),
+  refresh: () => {
+    if (!refreshPromise) {
+      refreshPromise = clientApi.post("/auth/refresh").finally(() => {
+        refreshPromise = null;
+      });
+    }
+    return refreshPromise;
+  },
   logout: () =>
     clientApi.post("/auth/logout"),
   getProfile: () =>
