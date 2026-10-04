@@ -1,6 +1,8 @@
 import crypto from "crypto";
+import mongoose from "mongoose";
 import { redisClient, isRedisConnected } from "../config/redis.js";
 import User from "../models/user.model.js";
+import RefreshToken from "../models/refreshToken.model.js";
 import config, { isTestEnv } from "../config/env.js";
 import { generateToken } from "./auth.service.js";
 
@@ -20,16 +22,43 @@ export const setRotationGracePeriodSeconds = (sec) => {
   ROTATION_GRACE_PERIOD_SECONDS = sec;
 };
 
+const isMongoConnected = () => mongoose.connection?.readyState === 1;
+
 /**
  * Cookie options adhering to OWASP security guidelines
+ * path: "/" allows SPA initial routing & background silent refresh without subpath drop
+ * sameSite: "lax" ensures the cookie is sent on top-level navigations (reopening tab/typing URL)
+ * secure: only enabled when HTTPS is explicitly used or via COOKIE_SECURE=true
  */
-export const getRefreshTokenCookieOptions = () => ({
-  httpOnly: true,
-  secure: config.isProduction,
-  sameSite: config.isProduction ? "strict" : "lax",
-  path: "/api/v1/auth",
-  maxAge: REFRESH_TOKEN_TTL_SECONDS * 1000,
-});
+export const getRefreshTokenCookieOptions = () => {
+  const isSecure = process.env.COOKIE_SECURE
+    ? process.env.COOKIE_SECURE === "true"
+    : config.isProduction && process.env.SSL_ENABLED === "true";
+
+  return {
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: "lax",
+    path: "/",
+    maxAge: REFRESH_TOKEN_TTL_SECONDS * 1000,
+  };
+};
+
+/**
+ * Clean cookie options for clearing cookies without maxAge conflict
+ */
+export const getRefreshTokenCookieClearOptions = () => {
+  const isSecure = process.env.COOKIE_SECURE
+    ? process.env.COOKIE_SECURE === "true"
+    : config.isProduction && process.env.SSL_ENABLED === "true";
+
+  return {
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: "lax",
+    path: "/",
+  };
+};
 
 /**
  * Generate a cryptographically secure, high-entropy refresh token string.
@@ -39,7 +68,7 @@ const generateRandomToken = () => {
 };
 
 /**
- * Store a new refresh token in Redis and associate it with the user session.
+ * Store a new refresh token in Redis (or MongoDB fallback) and associate it with the user session.
  * @param {object} user - User document
  * @param {string} [userAgent] - Request user agent
  * @param {string} [ip] - Client IP address
@@ -75,6 +104,23 @@ export const createRefreshToken = async (user, userAgent = "", ip = "", familyId
       await pipeline.exec();
     } catch (err) {
       console.warn("⚠️ [REFRESH TOKEN ERROR] Failed to save refresh token in Redis:", err.message);
+    }
+  }
+
+  if (isMongoConnected()) {
+    try {
+      await RefreshToken.create({
+        token,
+        userId: sessionData.userId,
+        email: sessionData.email,
+        role: sessionData.role,
+        familyId: sessionData.familyId,
+        userAgent,
+        ip,
+        expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_SECONDS * 1000),
+      });
+    } catch (err) {
+      console.warn("⚠️ [REFRESH TOKEN ERROR] Failed to save refresh token in MongoDB:", err.message);
     }
   }
 
@@ -114,6 +160,14 @@ export const revokeAllUserRefreshTokens = async (userId) => {
       console.warn("⚠️ [REFRESH TOKEN ERROR] Failed to revoke all tokens in Redis:", err.message);
     }
   }
+
+  if (isMongoConnected()) {
+    try {
+      await RefreshToken.deleteMany({ userId: idStr });
+    } catch (err) {
+      console.warn("⚠️ [REFRESH TOKEN ERROR] Failed to revoke user tokens in MongoDB:", err.message);
+    }
+  }
 };
 
 /**
@@ -151,6 +205,14 @@ export const revokeRefreshToken = async (token) => {
       console.warn("⚠️ [REFRESH TOKEN ERROR] Failed to delete refresh token from Redis:", err.message);
     }
   }
+
+  if (isMongoConnected()) {
+    try {
+      await RefreshToken.deleteOne({ token });
+    } catch (err) {
+      console.warn("⚠️ [REFRESH TOKEN ERROR] Failed to delete token from MongoDB:", err.message);
+    }
+  }
 };
 
 /**
@@ -173,6 +235,7 @@ export const rotateRefreshToken = async (currentToken, userAgent = "", ip = "") 
   }
 
   let sessionData = memoryRefreshTokens.get(currentToken);
+  let mongoDoc = null;
 
   if (isRedisConnected()) {
     try {
@@ -182,6 +245,23 @@ export const rotateRefreshToken = async (currentToken, userAgent = "", ip = "") 
       }
     } catch (err) {
       console.warn("⚠️ [REFRESH TOKEN ERROR] Redis lookup failed, checking fallback:", err.message);
+    }
+  } else if (!sessionData && isMongoConnected()) {
+    try {
+      mongoDoc = await RefreshToken.findOne({ token: currentToken });
+      if (mongoDoc && !mongoDoc.isRevoked) {
+        sessionData = {
+          userId: mongoDoc.userId.toString(),
+          email: mongoDoc.email,
+          role: mongoDoc.role,
+          familyId: mongoDoc.familyId,
+          userAgent: mongoDoc.userAgent,
+          ip: mongoDoc.ip,
+          createdAt: mongoDoc.createdAt ? mongoDoc.createdAt.getTime() : Date.now(),
+        };
+      }
+    } catch (err) {
+      console.warn("⚠️ [REFRESH TOKEN ERROR] MongoDB lookup failed:", err.message);
     }
   }
 
@@ -197,6 +277,47 @@ export const rotateRefreshToken = async (currentToken, userAgent = "", ip = "") 
         }
       } catch (err) {
         console.warn("⚠️ [REFRESH TOKEN ERROR] Grace lookup failed:", err.message);
+      }
+    } else if (
+      mongoDoc &&
+      mongoDoc.isRevoked &&
+      mongoDoc.graceExpiresAt &&
+      mongoDoc.graceExpiresAt > new Date()
+    ) {
+      graceRecord = {
+        accessToken: mongoDoc.graceAccessToken,
+        refreshToken: mongoDoc.graceRefreshToken,
+        user: {
+          id: mongoDoc.userId.toString(),
+          _id: mongoDoc.userId.toString(),
+          email: mongoDoc.email,
+          role: mongoDoc.role,
+        },
+      };
+    } else if (!graceRecord && isMongoConnected()) {
+      try {
+        const revokedDoc = await RefreshToken.findOne({
+          token: currentToken,
+          isRevoked: true,
+        });
+        if (
+          revokedDoc &&
+          revokedDoc.graceExpiresAt &&
+          revokedDoc.graceExpiresAt > new Date()
+        ) {
+          graceRecord = {
+            accessToken: revokedDoc.graceAccessToken,
+            refreshToken: revokedDoc.graceRefreshToken,
+            user: {
+              id: revokedDoc.userId.toString(),
+              _id: revokedDoc.userId.toString(),
+              email: revokedDoc.email,
+              role: revokedDoc.role,
+            },
+          };
+        }
+      } catch (err) {
+        console.warn("⚠️ [REFRESH TOKEN ERROR] MongoDB grace lookup failed:", err.message);
       }
     }
 
@@ -230,6 +351,16 @@ export const rotateRefreshToken = async (currentToken, userAgent = "", ip = "") 
       }
     }
 
+    if (mongoDoc && mongoDoc.isRevoked) {
+      console.error(
+        `🚨 [SECURITY ALERT] Refresh token reuse detected for user ${mongoDoc.userId}! Invalidating all user sessions.`,
+      );
+      await revokeAllUserRefreshTokens(mongoDoc.userId);
+      const error = new Error("Security breach detected: token reuse. All sessions terminated.");
+      error.statusCode = 401;
+      throw error;
+    }
+
     if (memoryRevokedTokens.has(currentToken)) {
       const reusedPayload = memoryRevokedTokens.get(currentToken);
       await revokeAllUserRefreshTokens(reusedPayload.userId);
@@ -252,7 +383,7 @@ export const rotateRefreshToken = async (currentToken, userAgent = "", ip = "") 
     throw error;
   }
 
-  // Delete the old refresh token
+  // Delete the old refresh token from memory
   memoryRefreshTokens.delete(currentToken);
   memoryRevokedTokens.set(currentToken, sessionData);
   setTimeout(() => memoryRevokedTokens.delete(currentToken), REUSE_DETECTION_WINDOW_SECONDS * 1000).unref();
@@ -299,6 +430,26 @@ export const rotateRefreshToken = async (currentToken, userAgent = "", ip = "") 
       await pipeline.exec();
     } catch (err) {
       console.warn("⚠️ [REFRESH TOKEN ERROR] Failed to record token rotation in Redis:", err.message);
+    }
+  }
+
+  // Record rotation & grace period in MongoDB fallback if Redis is not connected
+  if (isMongoConnected()) {
+    try {
+      await RefreshToken.updateOne(
+        { token: currentToken },
+        {
+          $set: {
+            isRevoked: true,
+            revokedAt: new Date(),
+            graceExpiresAt: new Date(Date.now() + ROTATION_GRACE_PERIOD_SECONDS * 1000),
+            graceAccessToken: newAccessToken,
+            graceRefreshToken: newRefreshToken,
+          },
+        },
+      );
+    } catch (err) {
+      console.warn("⚠️ [REFRESH TOKEN ERROR] Failed to record token rotation in MongoDB:", err.message);
     }
   }
 
