@@ -4,6 +4,7 @@ import request from "supertest";
 import mongoose from "mongoose";
 import app from "../src/app.js";
 import User from "../src/models/user.model.js";
+import RefreshToken from "../src/models/refreshToken.model.js";
 import config from "../src/config/env.js";
 import { closeRedis } from "../src/config/redis.js";
 import { stopAllWorkers } from "../src/services/queue.service.js";
@@ -22,11 +23,13 @@ describe("Enterprise Refresh Token & Rotation (Redis + httpOnly Cookie) Test Sui
       await mongoose.connect(config.mongoUri);
     }
     await User.deleteMany({ email: TEST_EMAIL });
+    await RefreshToken.deleteMany({});
   });
 
   after(async () => {
     stopAllWorkers();
     await User.deleteMany({ email: TEST_EMAIL });
+    await RefreshToken.deleteMany({});
     await mongoose.disconnect();
     await closeRedis();
   });
@@ -50,7 +53,7 @@ describe("Enterprise Refresh Token & Rotation (Redis + httpOnly Cookie) Test Sui
     const refreshCookie = cookies.find((c) => c.startsWith("refreshToken="));
     assert.ok(refreshCookie, "refreshToken cookie must be present");
     assert.match(refreshCookie, /HttpOnly/i, "Cookie must have HttpOnly flag");
-    assert.match(refreshCookie, /Path=\/api\/v1\/auth/i, "Cookie must have restricted path");
+    assert.match(refreshCookie, /Path=\//i, "Cookie must have root path for persistent SPA session");
 
     initialCookie = refreshCookie.split(";")[0];
     accessToken = res.body.data.token;
@@ -172,5 +175,31 @@ describe("Enterprise Refresh Token & Rotation (Redis + httpOnly Cookie) Test Sui
     } finally {
       setRotationGracePeriodSeconds(0);
     }
+  });
+
+  it("7. Refresh tokens persist in MongoDB and survive across server reload / fallback scenarios", async () => {
+    const loginRes = await request(app)
+      .post("/api/v1/auth/login")
+      .send({ email: TEST_EMAIL, password: TEST_PASS });
+
+    const cookieHeader = loginRes.headers["set-cookie"].find((c) =>
+      c.startsWith("refreshToken="),
+    );
+    const tokenCookie = cookieHeader.split(";")[0];
+    const rawToken = tokenCookie.replace("refreshToken=", "");
+
+    // Verify token was stored in MongoDB
+    const mongoDoc = await RefreshToken.findOne({ token: rawToken });
+    assert.ok(mongoDoc, "Refresh token must be persisted in MongoDB collection");
+    assert.equal(mongoDoc.email, TEST_EMAIL);
+    assert.equal(mongoDoc.isRevoked, false);
+
+    // Refresh request succeeds
+    const refreshRes = await request(app)
+      .post("/api/v1/auth/refresh")
+      .set("Cookie", [tokenCookie]);
+
+    assert.equal(refreshRes.status, 200);
+    assert.ok(refreshRes.body.data.token);
   });
 });
