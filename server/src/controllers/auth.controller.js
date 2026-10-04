@@ -13,6 +13,7 @@ import {
   revokeRefreshToken,
   revokeAllUserRefreshTokens,
   getRefreshTokenCookieOptions,
+  getRefreshTokenCookieClearOptions,
 } from "../services/refreshToken.service.js";
 import { resetAccountLimit } from "../middleware/rateLimit.middleware.js";
 
@@ -91,7 +92,7 @@ export const refresh = async (req, res, next) => {
     });
   } catch (error) {
     // If refresh token is invalid or stolen, clear cookie
-    res.clearCookie("refreshToken", getRefreshTokenCookieOptions());
+    res.clearCookie("refreshToken", getRefreshTokenCookieClearOptions());
     next(error);
   }
 };
@@ -119,7 +120,7 @@ export const logout = async (req, res, next) => {
     }
 
     // Clear refresh token cookie from browser
-    res.clearCookie("refreshToken", getRefreshTokenCookieOptions());
+    res.clearCookie("refreshToken", getRefreshTokenCookieClearOptions());
 
     res.status(200).json({
       success: true,
@@ -175,7 +176,7 @@ export const deleteAccount = async (req, res, next) => {
 
     // Invalidate all active refresh tokens in Redis for this deleted account
     await revokeAllUserRefreshTokens(userId);
-    res.clearCookie("refreshToken", getRefreshTokenCookieOptions());
+    res.clearCookie("refreshToken", getRefreshTokenCookieClearOptions());
 
     res.status(200).json({
       success: true,
