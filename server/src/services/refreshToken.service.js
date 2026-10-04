@@ -105,7 +105,9 @@ export const createRefreshToken = async (user, userAgent = "", ip = "", familyId
     } catch (err) {
       console.warn("⚠️ [REFRESH TOKEN ERROR] Failed to save refresh token in Redis:", err.message);
     }
-  } else if (isMongoConnected()) {
+  }
+
+  if (isMongoConnected()) {
     try {
       await RefreshToken.create({
         token,
