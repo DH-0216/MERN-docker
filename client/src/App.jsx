@@ -66,20 +66,6 @@ function App() {
       <Routes>
         <Route
           path="/"
-          element={<Navigate to={token ? "/home" : "/auth"} replace />}
-        />
-        <Route
-          path="/auth"
-          element={
-            token ? (
-              <Navigate to="/home" replace />
-            ) : (
-              <Auth onAuthSuccess={handleAuthSuccess} />
-            )
-          }
-        />
-        <Route
-          path="/home"
           element={
             <ProtectedRoute token={token}>
               <Home token={token} onLogout={handleLogout} />
@@ -87,8 +73,18 @@ function App() {
           }
         />
         <Route
+          path="/auth"
+          element={
+            token ? (
+              <Navigate to="/" replace />
+            ) : (
+              <Auth onAuthSuccess={handleAuthSuccess} />
+            )
+          }
+        />
+        <Route
           path="*"
-          element={<Navigate to={token ? "/home" : "/auth"} replace />}
+          element={<Navigate to={token ? "/" : "/auth"} replace />}
         />
       </Routes>
     </BrowserRouter>
