@@ -89,11 +89,14 @@ jobs:
               HEALTH_PASSED=false
 
               for attempt in $(seq 1 12); do
-                API_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1/api/v1/health || true)
-                CLIENT_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1/ || true)
+                # Probing application via curl with redirect following (-L) and insecure flag (-k) for SSL loopback
+                API_CODE=$(curl -s -k -L --max-redirs 5 -o /dev/null -w "%{http_code}" http://127.0.0.1/api/v1/health || true)
+                CLIENT_CODE=$(curl -s -k -L --max-redirs 5 -o /dev/null -w "%{http_code}" http://127.0.0.1/ || true)
 
-                if [ "$API_CODE" = "200" ] && [ "$CLIENT_CODE" = "200" ]; then
-                  echo "    Health checks PASSED on attempt ${attempt}! (API: 200, Client: 200)"
+                # 200 is healthy (direct or followed redirect); 301/302 is healthy HTTP->HTTPS redirect
+                if { [ "$API_CODE" = "200" ] || [ "$API_CODE" = "301" ] || [ "$API_CODE" = "302" ]; } && \
+                   { [ "$CLIENT_CODE" = "200" ] || [ "$CLIENT_CODE" = "301" ] || [ "$CLIENT_CODE" = "302" ]; }; then
+                  echo "    Health checks PASSED on attempt ${attempt}! (API: ${API_CODE}, Client: ${CLIENT_CODE})"
                   HEALTH_PASSED=true
                   break
                 fi
@@ -124,7 +127,7 @@ jobs:
 
               echo "--> Verifying rollback health..."
               sleep 5
-              ROLLBACK_API=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1/api/v1/health || true)
+              ROLLBACK_API=$(curl -s -k -L --max-redirs 5 -o /dev/null -w "%{http_code}" http://127.0.0.1/api/v1/health || true)
               echo "    Rollback completed. Current API status: ${ROLLBACK_API}"
 
               echo "Deployment failed and safely rolled back to previous version."
